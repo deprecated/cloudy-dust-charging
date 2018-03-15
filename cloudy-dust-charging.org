@@ -1,0 +1,5 @@
+* Cloudy models of dust grain charging around luminous stars
++ The aim is to find \phi as a function of ionization parameter (and other parameters)
+  + Mainly for OB stars, but may also try RSG/AGB case
++ This can then be used to study gas-grain decoupling in bow shocks
+
