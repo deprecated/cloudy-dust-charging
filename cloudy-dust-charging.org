@@ -2,4 +2,21 @@
 + The aim is to find \phi as a function of ionization parameter (and other parameters)
   + Mainly for OB stars, but may also try RSG/AGB case
 + This can then be used to study gas-grain decoupling in bow shocks
+* TODO Initial tests
++ [X] Write an input file by hand
+  + Start with something from test suite?
+  + First attempt is [[file:models/test-dust.in]]
++ [ ] Run it and see what output we need to save
+  #+BEGIN_SRC sh :eval no
+  export D=~/Work/CLOUDY/cloudy/source
+  cd models
+  $D/cloudy.exe -p test-dust
+  #+END_SRC
+
+* TODO Production runs
++ [ ] Decide which approach to use?
+  1. Python script to write multiple input, run with ~make -j 8~
+  2. Work out how to use Cloudy grid command (need to install MPI?)
++ Do it
+
 
