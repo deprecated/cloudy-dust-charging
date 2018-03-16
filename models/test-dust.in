@@ -1,7 +1,7 @@
 title Test of dust properties around hot star
 set save prefix "test-dust"
-# 10 Msun B1.5V star 
-blackbody 25000
+# 10 Msun B1.5V star
+table star wmbasic 25000 4.2 0.0
 luminosity 33.4 
 hden 1
 # Start close in: 0.001 pc
@@ -9,11 +9,14 @@ radius 14.5
 #
 iterate
 abundances HII region
-cosmi ray background
-#
+cosmic ray background
+# save all the output we want
 save overview last ".ovr"
+save physical conditions last ".phys"
 save continuum last ".cont"
+save interactive continuum last ".icont"
 save grain charge last ".gcharge"
 save grain continuum last ".gcont"
 save grain drift velocity last ".gdrift"
 save grain potential last ".gpot"
+save grain temperature last ".gtemp"
