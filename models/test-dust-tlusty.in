@@ -1,0 +1,26 @@
+title Test of dust properties around hot star
+set save prefix "test-dust-tlusty"
+# 10 Msun B1.5V star
+# table star wmbasic 25000 4.2 0.0
+table star tlusty OBstar 3-dim 25000 4.2 0.0
+luminosity 33.4 
+hden 1 # density of 10 pcc
+# Start close in: 0.001 pc
+radius 14.5
+# Go into PDR a bit
+stop temperature 1000 K linear
+stop efrac 0.001
+stop Lyman optical depth = 5
+iterate
+abundances HII region
+cosmic ray background
+# save all the output we want
+save overview last ".ovr"
+save physical conditions last ".phys"
+save continuum last ".cont"
+save interactive continuum last ".icont"
+save grain charge last ".gcharge"
+save grain continuum last ".gcont"
+save grain drift velocity last ".gdrift"
+save grain potential last ".gpot"
+save grain temperature last ".gtemp"
