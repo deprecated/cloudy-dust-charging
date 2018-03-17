@@ -104,6 +104,56 @@ CLOSED: [2018-03-16 Fri 10:55]
 
 * Graphs
 
+** Utility for reading model
+#+BEGIN_SRC python :tangle cloudy_tables.py
+  from astropy.table import Table
+  import glob
+  import os
+
+  # File extensions that might be present, which are NOT Cloudy save files
+  IGNORE_EXTS = ["pdf", "png", "jpg"]
+
+  class CloudyModel(object):
+      """Lightweight wrapper for output from Cloudy run 
+
+      For example:
+
+      >>> from cloudy_tables import CloudyModel
+      >>> m = CloudyModel("mymodel", dir="myfolder")
+
+      `m.files` contains a list of all the files that were found: 
+                `['myfolder/mymodel.in', 'myfolder/mymodel.ovr', ETC]`
+
+      `m.data` contains dict of astropy.Table's, one for each save file:
+                `{'ovr': <Table length=289> ..., ETC}`
+
+      `m.io['in']` and `m.io['out']` contain the input and output streams
+      """
+      def __init__(self, prefix, dir="."):
+          self.files = glob.glob(os.path.join(dir, prefix) + ".*")
+          self.data = {}
+          self.io = {}
+          for file_ in self.files:
+              saveid = file_.split(os.path.extsep)[-1]
+              if saveid in IGNORE_EXTS:
+                  # Figure files, etc need to be skipped
+                  pass
+              elif saveid in ["in", "out"]:
+                  # Special case of input and output files
+                  with open(file_) as f:
+                      # Just save the whole file as a string
+                      self.io[saveid] = f.read()
+              else:
+                  # Assume all else are save files
+                  try:
+                      self.data[saveid] = Table.read(
+                          file_, format="ascii.commented_header", delimiter="\t")
+                  except UnicodeDecodeError:
+                      # Assume this is not a Cloudy file
+                      pass
+
+#+END_SRC
+
 ** Multi-panels for a single run
 #+name: make-plot
 #+header: :var PREFIX="test-dust-tlusty"
@@ -113,38 +163,28 @@ CLOSED: [2018-03-16 Fri 10:55]
   from astropy.table import Table
   from astropy import units as u
   from astropy.constants import k_B
+  from cloudy_tables import CloudyModel
 
   pltfile = f'models/{PREFIX}.png'
-  tab_ovr = Table.read(f"models/{PREFIX}.ovr",
-                       format="ascii.commented_header", delimiter="\t")
-  tab_gdrift = Table.read(f"models/{PREFIX}.gdrift",
-                          format="ascii.commented_header", delimiter="\t")
-  tab_gpot = Table.read(f"models/{PREFIX}.gpot",
-                        format="ascii.commented_header", delimiter="\t")
-  tab_gtemp = Table.read(f"models/{PREFIX}.gtemp",
-                        format="ascii.commented_header", delimiter="\t")
-  tab_phys = Table.read(f"models/{PREFIX}.phys",
-                        format="ascii.commented_header", delimiter="\t")
-  tab_rad = Table.read(f"models/{PREFIX}.rad",
-                        format="ascii.commented_header", delimiter="\t")
+  m = CloudyModel(PREFIX, dir="models")
 
   sns.set_palette("Reds_d", n_colors=10)
   sns.set_color_codes()
   fig, axes = plt.subplots(4, 1, sharex=True, figsize=(6, 9))
-  radius_pc = (tab_rad["radius"])*u.cm.to(u.pc)
-  kT_eV = (tab_ovr["Te"]*u.K*k_B).to(u.eV)
+  radius_pc = (m.data["rad"]["radius"])*u.cm.to(u.pc)
+  kT_eV = (m.data["ovr"]["Te"]*u.K*k_B).to(u.eV)
 
-  for gtype in tab_gdrift.colnames[1:]:
+  for gtype in m.data["gdrift"].colnames[1:]:
       if gtype.startswith('sil'):
           style = dict(lw=1.0, alpha=0.6, ls='-')
       else:
           style = dict(lw=0.6, alpha=1.0, ls='--')
-      axes[-1].plot(radius_pc, tab_gdrift[gtype], label=gtype, **style)
-      axes[-2].plot(radius_pc, tab_gpot[gtype], label=gtype, **style)
-      axes[0].plot(radius_pc, tab_gtemp[gtype], label=gtype, **style)
+      axes[-1].plot(radius_pc, m.data["gdrift"][gtype], label=gtype, **style)
+      axes[-2].plot(radius_pc, m.data["gpot"][gtype], label=gtype, **style)
+      axes[0].plot(radius_pc, m.data["gtemp"][gtype], label=gtype, **style)
 
-  axes[0].plot(radius_pc, tab_ovr["Te"], color='g')
-  axes[1].plot(radius_pc, tab_phys["accel"], color='r')
+  axes[0].plot(radius_pc, m.data["ovr"]["Te"], color='g')
+  axes[1].plot(radius_pc, m.data["phys"]["accel"], color='r')
 
 
   axes[-2].plot(radius_pc, kT_eV)
