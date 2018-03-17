@@ -2,26 +2,111 @@
 + The aim is to find \phi as a function of ionization parameter (and other parameters)
   + Mainly for OB stars, but may also try RSG/AGB case
 + This can then be used to study gas-grain decoupling in bow shocks
-* TODO Initial tests
+* DONE Initial tests
+CLOSED: [2018-03-16 Fri 10:55]
 + [X] Write an input file by hand
   + Start with something from test suite?
   + First attempt is [[file:models/test-dust.in]]
-+ [ ] Run it and see what output we need to save
++ [X] Run it and see what output we need to save
   #+BEGIN_SRC sh :eval no
   export D=~/Work/CLOUDY/cloudy/source
   cd models
   $D/cloudy.exe -p test-dust
   #+END_SRC
 
+
 * TODO Production runs
-+ [ ] Decide which approach to use?
++ [X] Decide which approach to use?
   1. Python script to write multiple input, run with ~make -j 8~
   2. Work out how to use Cloudy grid command (need to install MPI?)
 + Do it
 
 
+* Expand template for input files
+#+BEGIN_SRC python
+  from textwrap import dedent
+  import numpy as np
+
+  def star_input(id_, L_Lsun, T3, log_g):
+      s = f"# {id_} star" + "\n"
+      s += f"table star tlusty OBstar 3-dim {1e3*T3:.0f} {log_g} 0.0" + "\n"
+      s += f"luminosity {np.log10(3.82e33*L_Lsun):.2f}" + "\n"
+      return s
+
+  def hden_input(hden):
+      return f"hden {hden:.2f} # density of {10**hden} pcc" + "\n"
+
+  def file_stem(hden, id_):
+      return f"dustrad-n{int(hden):02d}-{id_}" 
+
+  def intro_input(hden, id_):
+      s = f"title Dust radiative acceleration: star {id_}, density {10**hden} pcc" + "\n"
+      s += f"set save prefix \"{file_stem(hden, id_)}\"" + "\n"
+      return s
+
+  stars = [
+      # id_  L_Lsun  T3    log_g
+      ["MS10", 0.63, 25.2, 4.2],
+      ["MS20", 5.45, 33.9, 4.2],
+      ["MS40", 22.2, 42.5, 4.2],
+      ["BSG",  30.2, 23.5, 3.4],
+  ]
+
+  def radius_input(L_Lsun, hden):
+      # Scale R_in to give same F_bol / N as the MS10 model with hden=1
+      R_in = 3e15 * np.sqrt((L_Lsun/0.63) * 10**(1.0 - hden))
+      s = f"# Start close in: {R_in/3.085677582e18:.5f} pc" + "\n"
+      s += f"radius {np.log10(R_in)}" + "\n"
+      return s
+
+
+  outro_input = dedent("""\
+  # Go into PDR a bit
+  stop temperature 1000 K linear
+  stop efrac 0.001
+  stop Lyman optical depth = 5
+  iterate
+  sphere
+  abundances HII region
+  cosmic ray background
+  cmb
+  # save all the output we want
+  save overview last ".ovr"
+  save physical conditions last ".phys"
+  save continuum last ".cont"
+  save radius last ".rad"
+  save interactive continuum last ".icont"
+  save grain charge last ".gcharge"
+  save grain continuum last ".gcont"
+  save grain drift velocity last ".gdrift"
+  save grain potential last ".gpot"
+  save grain temperature last ".gtemp"
+  """)
+
+
+  for hden in 0.0, 1.0, 2.0, 3.0, 4.0:
+      for id_, L_Lsun, T3, log_g in stars:
+          cloudy_input = (intro_input(hden, id_)
+                          + star_input(id_, L_Lsun, T3, log_g)
+                          + hden_input(hden)
+                          + radius_input(L_Lsun, hden)
+                          + outro_input)
+          file_name = f"models/{file_stem(hden, id_)}.in"
+          with open(file_name, "w") as f:
+              f.write(cloudy_input)
+#+END_SRC
+
+#+RESULTS:
+: None
+
+
+* Look at dust 
 
 * Graphs
+
+** Multi-panels for a single run
+#+name: make-plot
+#+header: :var PREFIX="test-dust-tlusty"
 #+BEGIN_SRC python :return pltfile :results file :exports both
   from matplotlib import pyplot as plt
   import seaborn as sns
@@ -29,25 +114,25 @@
   from astropy import units as u
   from astropy.constants import k_B
 
-  pltfile = 'test-dust-tlusty.png'
-  tab_ovr = Table.read("models/test-dust-tlusty.ovr",
+  pltfile = f'models/{PREFIX}.png'
+  tab_ovr = Table.read(f"models/{PREFIX}.ovr",
                        format="ascii.commented_header", delimiter="\t")
-  tab_gdrift = Table.read("models/test-dust-tlusty.gdrift",
+  tab_gdrift = Table.read(f"models/{PREFIX}.gdrift",
                           format="ascii.commented_header", delimiter="\t")
-  tab_gpot = Table.read("models/test-dust-tlusty.gpot",
+  tab_gpot = Table.read(f"models/{PREFIX}.gpot",
                         format="ascii.commented_header", delimiter="\t")
-  tab_phys = Table.read("models/test-dust-tlusty.phys",
+  tab_gtemp = Table.read(f"models/{PREFIX}.gtemp",
+                        format="ascii.commented_header", delimiter="\t")
+  tab_phys = Table.read(f"models/{PREFIX}.phys",
+                        format="ascii.commented_header", delimiter="\t")
+  tab_rad = Table.read(f"models/{PREFIX}.rad",
                         format="ascii.commented_header", delimiter="\t")
 
   sns.set_palette("Reds_d", n_colors=10)
   sns.set_color_codes()
   fig, axes = plt.subplots(4, 1, sharex=True, figsize=(6, 9))
-  radius_pc = (10**14.5 + tab_gdrift["Depth"])*u.cm.to(u.pc)
+  radius_pc = (tab_rad["radius"])*u.cm.to(u.pc)
   kT_eV = (tab_ovr["Te"]*u.K*k_B).to(u.eV)
-
-  axes[0].plot(radius_pc, tab_ovr["Te"])
-
-  axes[1].plot(radius_pc, tab_phys["accel"])
 
   for gtype in tab_gdrift.colnames[1:]:
       if gtype.startswith('sil'):
@@ -56,12 +141,18 @@
           style = dict(lw=0.6, alpha=1.0, ls='--')
       axes[-1].plot(radius_pc, tab_gdrift[gtype], label=gtype, **style)
       axes[-2].plot(radius_pc, tab_gpot[gtype], label=gtype, **style)
+      axes[0].plot(radius_pc, tab_gtemp[gtype], label=gtype, **style)
+
+  axes[0].plot(radius_pc, tab_ovr["Te"], color='g')
+  axes[1].plot(radius_pc, tab_phys["accel"], color='r')
+
 
   axes[-2].plot(radius_pc, kT_eV)
   axes[-2].axhline(0.0, color='0.5', lw=0.5)
   axes[-1].legend(ncol=2, loc="lower left", fontsize="xx-small")
   axes[0].set(
       xscale="log",
+      yscale="log",
       ylabel="Temperature, K",
       ylim=[0, None],
   )
@@ -81,41 +172,82 @@
       xlabel="Radius, pc",
       ylabel="Drift velocity, km/s"
   )
+  fig.suptitle(PREFIX, y=0.99)
   sns.despine()
   fig.tight_layout(h_pad=0.1)
   fig.savefig(pltfile, dpi=300)
 #+END_SRC
 
+#+RESULTS: make-plot
+[[file:models/test-dust-tlusty.png]]
+
+
+#+call: make-plot(PREFIX="dustrad-n03-MS10")
+
 #+RESULTS:
-[[file:test-dust-tlusty.png]]
+[[file:models/dustrad-n03-MS10.png]]
 
+#+call: make-plot(PREFIX="dustrad-n03-MS40")
 
+#+RESULTS:
+[[file:models/dustrad-n03-MS40.png]]
 
-* An improved mode for cloudy input files
+#+call: make-plot(PREFIX="dustrad-n00-MS10")
 
+#+RESULTS:
+[[file:models/dustrad-n00-MS10.png]]
+
+#+call: make-plot(PREFIX="dustrad-n00-BSG")
+
+#+RESULTS:
+[[file:models/dustrad-n00-BSG.png]]
+
+#+call: make-plot(PREFIX="dustrad-n04-BSG")
+
+#+RESULTS:
+[[file:models/dustrad-n04-BSG.png]]
+
+#+call: make-plot(PREFIX="dustrad-n04-MS10")
+
+#+RESULTS:
+[[file:models/dustrad-n04-MS10.png]]
+
+#+call: make-plot(PREFIX="dustrad-n04-MS20")
+
+#+RESULTS:
+[[file:models/dustrad-n04-MS20.png]]
+
+#+call: make-plot(PREFIX="dustrad-n04-MS40")
+
+#+RESULTS:
+[[file:models/dustrad-n04-MS40.png]]
+
+* An emacs mode for cloudy input files
+Cloudy has now changed it's comment character, so I needed to revisit this
 #+BEGIN_SRC emacs-lisp
-    (require 'generic-x) ;; we need this
+  (require 'generic-x) ;; we need this
 
-    (define-generic-mode 
-        'cloudy-input-mode                         ;; name of the mode to create
-      '("# ")                           ;; comments start with '#'
-      '("set" "stop" "hden" "table" "blackbody" "title" "element" "constant" "cmb" "table"
-        "print" "save" "iterate" "time" "end" "cosmic ray" "coronal" "phi(h)"
-        "abundances" "luminosity")                     ;; some keywords
-      '(("\\(#\\($\\| .*\\)\\)" 1 'font-lock-comment-face t)
-        ("\\(//\\($\\| .*\\)\\)" 1 'font-lock-comment-face t)
-        ("=" . 'font-lock-operator-face)     ;; '=' is an operator
-        ("\\b\\(scale\\|log\\|linear\\|file\\|units\\)\\b" . 'font-lock-constant-face)     
-        ("\\b\\(no\\|end\\|stop\\)\\b" 1 'font-lock-negation-char-face t)     
-        ("^title \\(.*\\)$" 1 'font-lock-doc-face t)     
-        ("
+  (define-generic-mode 
+      'cloudy-input-mode                         ;; name of the mode to create
+    '("#")                           ;; comments start with '#'
+    '("set" "stop" "hden" "table" "blackbody" "title" "element" "constant" "cmb" 
+      "print" "save" "iterate" "time" "end" "cosmic ray" "coronal" "phi(h)"
+      "abundances" "luminosity" "table")                     ;; some keywords
+    '(("\\(#\\($\\| .*\\)\\)" 1 'font-lock-comment-face t)
+      ("\\(//\\($\\| .*\\)\\)" 1 'font-lock-comment-face t)
+      ("=" . 'font-lock-operator-face)     ;; '=' is an operator
+      ("\\b\\(scale\\|log\\|linear\\|file\\|units\\)\\b" . 'font-lock-constant-face)     
+      ("\\b\\(no\\|end\\|stop\\)\\b" 1 'font-lock-negation-char-face t)     
+      ("^title \\(.*\\)$" 1 'font-lock-doc-face t)     
+      ("^$" 1 'show-tabs-tab t)
+      ("
 
   \\(.*\\)$" 1 'font-lock-doc-face t)     
-        )     ;; 
-      '("\\.in$")                      ;; files for which to activate this mode 
-      nil                              ;; other functions to call
-      "A mode for Cloudy input files"            ;; doc string for this mode
-      )
+      )     ;; 
+    '("\\.in$")                      ;; files for which to activate this mode 
+    nil                              ;; other functions to call
+    "A mode for Cloudy input files"            ;; doc string for this mode
+    )
 #+END_SRC
 
 #+RESULTS:

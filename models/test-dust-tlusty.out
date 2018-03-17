@@ -760,7 +760,7 @@ database lines.......................      S  2      6730.82A   31.109    0.2528
    <a>:3.29E-06  erdeFe0.0E+00  Tcompt1.85E+06  Tthr6.75E+11  <Tden>: 5.50E+03  <dens>:2.33E-23  <MolWgt>7.40E-01
      Mean Jeans  l(cm)8.75E+20  M(sun)4.10E+06  smallest:     len(cm):3.72E+20  M(sun):3.15E+05  a_ox tran:  0.00
  Rion:8.915E+17  Dist:0.00E+00  Diam:0.000E+00
- Hatom level 70  HatomType: add  HInducImp  F  He tot level: 63  He2 level:   70  ExecTime    57.9
+ Hatom level 70  HatomType: add  HInducImp  F  He tot level: 63  He2 level:   70  ExecTime   113.0
  ConvrgError(%)  <eden>  0.049  MaxEden  0.409  <H-C>   0.04  Max(H-C)    0.33  <Press>   0.000  MaxPrs er  0.000
   Continuity(%)  chng Te   4.4  elec den   5.3  n(H2)    0.0  n(CO)        0.0
 
@@ -1525,7 +1525,7 @@ He 1      1.08303m   28.733    0.0011      P  2      1301.87A   29.280    0.0037
    <a>:3.29E-06  erdeFe0.0E+00  Tcompt1.85E+06  Tthr6.75E+11  <Tden>: 5.51E+03  <dens>:2.33E-23  <MolWgt>7.40E-01
      Mean Jeans  l(cm)8.75E+20  M(sun)4.11E+06  smallest:     len(cm):3.73E+20  M(sun):3.17E+05  a_ox tran:  0.00
  Rion:8.886E+17  Dist:0.00E+00  Diam:0.000E+00
- Hatom level 70  HatomType: add  HInducImp  F  He tot level: 63  He2 level:   70  ExecTime   111.8
+ Hatom level 70  HatomType: add  HInducImp  F  He tot level: 63  He2 level:   70  ExecTime   180.8
  ConvrgError(%)  <eden>  0.046  MaxEden  0.427  <H-C>   0.04  Max(H-C)    0.27  <Press>   0.000  MaxPrs er  0.000
   Continuity(%)  chng Te   5.0  elec den   5.4  n(H2)    0.0  n(CO)        0.0
 
@@ -2051,5 +2051,5 @@ Test of dust properties around hot star
          1 mean step length searches/chemistry step
 ----------------------------------------------------
 
- Cloudy ends: 289 zones, 2 iterations, 2 cautions. (single thread) ExecTime(s) 111.85
+ Cloudy ends: 289 zones, 2 iterations, 2 cautions. (single thread) ExecTime(s) 180.77
  [Stop in cdMain at maincl.cpp:519, Cloudy exited OK]
