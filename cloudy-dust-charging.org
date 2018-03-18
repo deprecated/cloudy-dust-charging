@@ -104,13 +104,12 @@ CLOSED: [2018-03-16 Fri 10:55]
 
 * Graphs
 
-** Utility for reading model
-#+BEGIN_SRC python :tangle cloudy_tables.py
+** Utility library for reading model
+#+BEGIN_SRC python :tangle cloudytab.py
   from astropy.table import Table
   import glob
-  import os
 
-  # File extensions that might be present, which are NOT Cloudy save files
+  # File extensions that might be present, but which are NOT Cloudy save files
   IGNORE_EXTS = ["pdf", "png", "jpg"]
 
   class CloudyModel(object):
@@ -118,8 +117,8 @@ CLOSED: [2018-03-16 Fri 10:55]
 
       For example:
 
-      >>> from cloudy_tables import CloudyModel
-      >>> m = CloudyModel("mymodel", dir="myfolder")
+      >>> from cloudytab import CloudyModel
+      >>> m = CloudyModel("myfolder/mymodel")
 
       `m.files` contains a list of all the files that were found: 
                 `['myfolder/mymodel.in', 'myfolder/mymodel.ovr', ETC]`
@@ -129,12 +128,12 @@ CLOSED: [2018-03-16 Fri 10:55]
 
       `m.io['in']` and `m.io['out']` contain the input and output streams
       """
-      def __init__(self, prefix, dir="."):
-          self.files = glob.glob(os.path.join(dir, prefix) + ".*")
+      def __init__(self, prefix):
+          self.files = glob.glob(prefix + ".*")
           self.data = {}
           self.io = {}
           for file_ in self.files:
-              saveid = file_.split(os.path.extsep)[-1]
+              saveid = file_.split(".")[-1]
               if saveid in IGNORE_EXTS:
                   # Figure files, etc need to be skipped
                   pass
@@ -147,12 +146,164 @@ CLOSED: [2018-03-16 Fri 10:55]
                   # Assume all else are save files
                   try:
                       self.data[saveid] = Table.read(
-                          file_, format="ascii.commented_header", delimiter="\t")
+                          file_, delimiter="\t",
+                          format="ascii.commented_header")
                   except UnicodeDecodeError:
-                      # Assume this is not a Cloudy file
+                      # Binary files can raise this error - ignore them
                       pass
 
 #+END_SRC
+
+
+** Try plotting a bunch of models: potential versus ionization parameter
++ Estimate ionization parameter from H neutral fraction 
++ Do a single star at a time, since there may be a secondary dependence on the spectral shape
+#+name: phi-vs-ipar
+#+header: :var STAR="MS10" GRAIN="sil-orion01"
+#+BEGIN_SRC python :return figfile :results file
+  import glob
+  from matplotlib import pyplot as plt
+  import seaborn as sns
+  from astropy import units as u
+  from astropy.constants import k_B
+  from cloudytab import CloudyModel
+
+  figfile = f"phi-ipar-{STAR}-{GRAIN}.pdf"
+
+  infiles = glob.glob(f"models/dustrad-*-{STAR}.in")
+  models = []
+  for infile in infiles:
+      prefix = infile.replace(".in", "")
+      modelid = prefix.replace("models/dustrad-", "")  # e.g., n03-MS10
+      models.append([modelid, CloudyModel(prefix)])
+
+
+  fig, ax = plt.subplots()
+  for label, m in sorted(models):
+      # Ionization parameter, estimated as x^2 / (1 - x)
+      # (Initially, we neglect correction for alpha(T) and sigma(tau))
+      ipar = m.data["ovr"]["HII"]**2 / m.data["ovr"]["HI"]
+      # Grain potential divided by kT
+      gpot = m.data["gpot"][GRAIN]*u.eV / (m.data["ovr"]["Te"]*u.K*k_B).to(u.eV)
+
+      ax.plot(ipar, gpot, label=label)
+  ax.axvspan(0.0111, 8.1, color='k', alpha=0.1)    # x = 0.1 -> 0.9
+  ax.axhspan(-1.0, 1.0, color='k', alpha=0.1)      # |phi| < 1
+  ax.legend(title=GRAIN)
+  ax.set(
+      xscale='log',
+      yscale='symlog',
+      xlabel="Ionization parameter",
+      ylabel="Grain potential / k T",
+      xlim=[3e-5, 3e6],
+      ylim=[-5.0, 50.0],
+  )
+  sns.despine()
+
+  fig.savefig(figfile)
+#+END_SRC
+
+#+RESULTS: phi-vs-ipar
+[[file:phi-ipar-MS10-sil-orion01.pdf]]
+
+#+call: phi-vs-ipar("MS10", "sil-orion10")
+
+#+RESULTS:
+[[file:phi-ipar-MS10-sil-orion10.pdf]]
+
+#+call: phi-vs-ipar("MS10", "gra-orion10")
+
+#+RESULTS:
+[[file:phi-ipar-MS10-gra-orion10.pdf]]
+
+#+call: phi-vs-ipar("MS40", "sil-orion01")
+
+#+RESULTS:
+[[file:phi-ipar-MS40-sil-orion01.pdf]]
+
+#+call: phi-vs-ipar("MS40", "gra-orion10")
+
+#+RESULTS:
+[[file:phi-ipar-MS40-gra-orion10.pdf]]
+
+#+call: phi-vs-ipar("BSG", "gra-orion10")
+
+#+RESULTS:
+[[file:phi-ipar-BSG-gra-orion10.pdf]]
+
+
+#+name: phi-vs-ipar-allgrain
+#+header: :var STAR="MS10" 
+#+BEGIN_SRC python :return figfile :results file
+  import glob
+  from matplotlib import pyplot as plt
+  import seaborn as sns
+  from astropy import units as u
+  from astropy.constants import k_B
+  from cloudytab import CloudyModel
+
+  figfile = f"phi-ipar-{STAR}-allgrain.pdf"
+
+  infiles = glob.glob(f"models/dustrad-*-{STAR}.in")
+  models = []
+  for infile in infiles:
+      prefix = infile.replace(".in", "")
+      modelid = prefix.replace("models/dustrad-", "")  # e.g., n03-MS10
+      models.append([modelid, CloudyModel(prefix)])
+
+
+  fig, ax = plt.subplots()
+  colors = sns.color_palette(palette="magma_r", n_colors=len(models))
+  for color, [label, m] in zip(colors, sorted(models)):
+      # Ionization parameter, estimated as x^2 / (1 - x)
+      # (Initially, we neglect correction for alpha(T) and sigma(tau))
+      ipar = m.data["ovr"]["HII"]**2 / m.data["ovr"]["HI"]
+
+      for grain in m.data["gpot"].colnames[1:]:
+          # Grain potential divided by kT
+          gpot = m.data["gpot"][grain]*u.eV / (m.data["ovr"]["Te"]*u.K*k_B).to(u.eV)
+          ls = '--' if grain.startswith("gra") else '-'
+          ax.plot(ipar, gpot, alpha=0.8, color=color, ls=ls, lw=0.3)
+          m2 = m.data["gdrift"][grain] >= 5.0
+          m1 = (m.data["gdrift"][grain] >= 0.5) & ~m2
+          ax.scatter(ipar[m2], gpot[m2],
+                     marker='.', alpha=0.6, color='c', edgecolors='none')
+          ax.scatter(ipar[m1], gpot[m1],
+                     marker='.', alpha=0.6, color='g', edgecolors='none')
+
+  ax.axvspan(0.0111, 8.1, color='k', alpha=0.1)    # x = 0.1 -> 0.9
+  ax.axhspan(-1.0, 1.0, color='k', alpha=0.1)      # |phi| < 1
+  #ax.legend(title=GRAIN)
+  ax.set(
+      xscale='log',
+      yscale='symlog',
+      xlabel="Ionization parameter",
+      ylabel="Grain potential / k T",
+      xlim=[3e-5, 3e6],
+      ylim=[-5.0, 50.0],
+  )
+  sns.despine()
+
+  fig.savefig(figfile)
+#+END_SRC
+
+#+RESULTS: phi-vs-ipar-allgrain
+[[file:phi-ipar-MS10-allgrain.pdf]]
+
+#+call: phi-vs-ipar-allgrain("MS20")
+
+#+RESULTS:
+[[file:phi-ipar-MS20-allgrain.pdf]]
+
+#+call: phi-vs-ipar-allgrain("MS40")
+
+#+RESULTS:
+[[file:phi-ipar-MS40-allgrain.pdf]]
+
+#+call: phi-vs-ipar-allgrain("BSG")
+
+#+RESULTS:
+[[file:phi-ipar-BSG-allgrain.pdf]]
 
 ** Multi-panels for a single run
 #+name: make-plot
@@ -160,13 +311,12 @@ CLOSED: [2018-03-16 Fri 10:55]
 #+BEGIN_SRC python :return pltfile :results file :exports both
   from matplotlib import pyplot as plt
   import seaborn as sns
-  from astropy.table import Table
   from astropy import units as u
   from astropy.constants import k_B
-  from cloudy_tables import CloudyModel
+  from cloudytab import CloudyModel
 
   pltfile = f'models/{PREFIX}.png'
-  m = CloudyModel(PREFIX, dir="models")
+  m = CloudyModel(f'models/{PREFIX}')
 
   sns.set_palette("Reds_d", n_colors=10)
   sns.set_color_codes()
@@ -261,6 +411,22 @@ CLOSED: [2018-03-16 Fri 10:55]
 
 #+RESULTS:
 [[file:models/dustrad-n04-MS40.png]]
+
+#+call: make-plot(PREFIX="dustrad-n00-MS40")
+
+#+RESULTS:
+[[file:models/dustrad-n00-MS40.png]]
+
+#+call: make-plot(PREFIX="dustrad-n04-MS20")
+
+#+RESULTS:
+[[file:models/dustrad-n04-MS20.png]]
+
+#+call: make-plot(PREFIX="dustrad-n00-MS20")
+
+#+RESULTS:
+[[file:models/dustrad-n00-MS20.png]]
+
 
 * An emacs mode for cloudy input files
 Cloudy has now changed it's comment character, so I needed to revisit this

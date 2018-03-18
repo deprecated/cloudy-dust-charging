@@ -1,22 +1,31 @@
 from astropy.table import Table
 import glob
-import os
 
-# File extensions that might be present, which are NOT Cloudy save files
+# File extensions that might be present, but which are NOT Cloudy save files
 IGNORE_EXTS = ["pdf", "png", "jpg"]
 
 class CloudyModel(object):
     """Lightweight wrapper for output from Cloudy run 
 
-    `data` contains dict of astropy.Table's, one for each save file 
+    For example:
+
+    >>> from cloudytab import CloudyModel
+    >>> m = CloudyModel("myfolder/mymodel")
+
+    `m.files` contains a list of all the files that were found: 
+              `['myfolder/mymodel.in', 'myfolder/mymodel.ovr', ETC]`
+
+    `m.data` contains dict of astropy.Table's, one for each save file:
+              `{'ovr': <Table length=289> ..., ETC}`
+
+    `m.io['in']` and `m.io['out']` contain the input and output streams
     """
-    def __init__(self, prefix, dir="."):
-        self.files = glob.glob(os.path.join(dir, prefix) + ".*")
+    def __init__(self, prefix):
+        self.files = glob.glob(prefix + ".*")
         self.data = {}
         self.io = {}
         for file_ in self.files:
-            print(f"Trying to read from {file_}")
-            saveid = file_.split(os.path.extsep)[-1]
+            saveid = file_.split(".")[-1]
             if saveid in IGNORE_EXTS:
                 # Figure files, etc need to be skipped
                 pass
@@ -28,10 +37,9 @@ class CloudyModel(object):
             else:
                 # Assume all else are save files
                 try:
-                    print(f"Reading data table from {saveid}")
                     self.data[saveid] = Table.read(
-                        file_, format="ascii.commented_header", delimiter="\t")
-                    print(f"Success with {saveid}")
+                        file_, delimiter="\t",
+                        format="ascii.commented_header")
                 except UnicodeDecodeError:
-                    # Assume this is not a Cloudy file
+                    # Binary files can raise this error - ignore them
                     pass
