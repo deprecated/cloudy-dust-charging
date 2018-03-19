@@ -306,6 +306,9 @@ CLOSED: [2018-03-16 Fri 10:55]
 [[file:phi-ipar-BSG-allgrain.pdf]]
 
 ** Multi-panels for a single run
+:PROPERTIES:
+:ID:       7081EFE5-65A5-4662-B298-B236BC13AC40
+:END:
 #+name: make-plot
 #+header: :var PREFIX="test-dust-tlusty"
 #+BEGIN_SRC python :return pltfile :results file :exports both
@@ -428,7 +431,135 @@ CLOSED: [2018-03-16 Fri 10:55]
 [[file:models/dustrad-n00-MS20.png]]
 
 
-* An emacs mode for cloudy input files
+
+* Look at continuum spectrum 
++ Saving every zone should be unnecessary
+  - we can just look at the incident and transmitted continuum for the last zone
+  - Since we don't go into the PDR much, this should be representative of the FUV and EUV attenuation throughout the nebula
+#+name: make-sed
+#+header: :var PREFIX="dustrad-n00-MS40"
+#+BEGIN_SRC python :return pltfile :results file
+  import numpy as np
+  from matplotlib import pyplot as plt
+  import seaborn as sns
+  from astropy.table import Table
+  from astropy import units as u
+  from astropy.constants import k_B
+  from cloudytab import CloudyModel
+
+  pltfile = f'spectra-{PREFIX}.pdf'
+  m = CloudyModel(f'models/{PREFIX}')
+
+  fig, ax = plt.subplots()
+
+  nu = m.data['cont']['Cont  nu']
+  nuFnu_inc = m.data['cont']['incident'] 
+  nuFnu_trans = m.data['cont']['trans'] 
+  nuFnu_tot = m.data['cont']['total'] 
+  vmax = nuFnu_inc.max()
+  ax.plot(nu, nuFnu_inc)
+  ax.plot(nu, nuFnu_tot, lw=0.6)
+  ax.plot(nu, nuFnu_trans, lw=0.3)
+
+  L_bol = np.trapz(nuFnu_inc/nu, nu)
+  mfuv = (nu >= 912.0/2000.0) & (nu <= 1.0)
+  meuv = (nu > 1.0) & (nu <= 4.0)
+  L_fuv = np.trapz(nuFnu_inc[mfuv]/nu[mfuv], nu[mfuv])
+  L_euv = np.trapz(nuFnu_inc[meuv]/nu[meuv], nu[meuv])
+
+  ax.axvspan(912.0/2000.0, 1.0, color='0.9')
+  ax.axvspan(1.0, 4.0, color='0.95')
+
+  ax.text(0.6, 2e-4*vmax, f"FUV\n{100*L_fuv/L_bol:.1f}%")
+  ax.text(1.5, 2e-4*vmax, f"EUV\n{100*L_euv/L_bol:.1f}%")
+  ax.set(
+      xlim=[0.05, 4.0],
+      ylim=[1e-4*vmax, 2.*vmax],
+      yscale='log',
+      xscale='log',
+      xlabel='Photon energy, Rydberg',
+      ylabel=r'$\nu F_{\nu}$',
+  )
+
+  fig.savefig(pltfile)
+
+#+END_SRC
+
+#+RESULTS: make-sed
+[[file:spectra-dustrad-n00-MS40.pdf]]
+
+
+#+call: make-sed(PREFIX="dustrad-n04-MS40")
+
+#+RESULTS:
+[[file:spectra-dustrad-n04-MS40.pdf]]
+
+#+call: make-sed(PREFIX="dustrad-n04-BSG")
+
+#+RESULTS:
+[[file:spectra-dustrad-n04-BSG.pdf]]
+
+#+call: make-sed(PREFIX="dustrad-n00-MS10")
+
+#+RESULTS:
+[[file:spectra-dustrad-n00-MS10.pdf]]
+
+#+call: make-sed(PREFIX="dustrad-n00-MS20")
+
+#+RESULTS:
+[[file:spectra-dustrad-n00-MS20.pdf]]
+
+#+call: make-sed(PREFIX="dustrad-n04-MS20")
+
+#+RESULTS:
+[[file:spectra-dustrad-n04-MS20.pdf]]
+
+** Save continuum every zone
++ I am testing saving this every zone so I can find FUV and EUV flux vs radius
+  + This makes an enormous file!
+    :   -rw-r--r--   1 will staff 247M Mar 17 23:58  test-dust-tlusty.cont
++ Seems to be no way to get Cloudy to save flux in a band as function of depth
++ For this example run (MS10 low density), the FUV is not absorbed at all because the ionization parameter is low, so dust \tau is negligible
+
+#+header: :var PREFIX="test-dust-tlusty"
+#+BEGIN_SRC python :return pltfile :results file
+  import numpy as np
+  from matplotlib import pyplot as plt
+  import seaborn as sns
+  from astropy.table import Table
+  from astropy import units as u
+  from astropy.constants import k_B
+  from cloudytab import CloudyModel
+
+  pltfile = f'fluxes-{PREFIX}.pdf'
+  m = CloudyModel(f'models/{PREFIX}')
+
+  # Split spectrum into a list of tables, one for each spatial zone
+  nzones = len(m.data['ovr'])
+  split_tabs = [Table(t) for t in np.split(m.data['cont'].as_array(), nzones)]
+
+  fig, ax = plt.subplots()
+
+  for tab in split_tabs[::10]:
+      ax.plot(tab['Cont  nu'], tab['trans'])
+
+  ax.set(
+      xlim=[0.1, 10.0],
+      ylim=[1e25, 1e37],
+      yscale='log',
+      xscale='log',
+      xlabel='Photon energy, Rydberg',
+      ylabel='Flux',
+  )
+
+  fig.savefig(pltfile)
+
+#+END_SRC
+
+#+RESULTS:
+[[file:fluxes-test-dust-tlusty.pdf]]
+
+* An Emacs mode for cloudy input files
 Cloudy has now changed it's comment character, so I needed to revisit this
 #+BEGIN_SRC emacs-lisp
   (require 'generic-x) ;; we need this

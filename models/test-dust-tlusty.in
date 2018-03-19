@@ -17,7 +17,7 @@ cosmic ray background
 # save all the output we want
 save overview last ".ovr"
 save physical conditions last ".phys"
-save continuum last ".cont"
+save continuum last every ".cont"
 save interactive continuum last ".icont"
 save grain charge last ".gcharge"
 save grain continuum last ".gcont"
