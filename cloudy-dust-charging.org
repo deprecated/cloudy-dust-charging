@@ -317,6 +317,143 @@ CLOSED: [2018-03-16 Fri 10:55]
 #+RESULTS:
 [[file:phi-ipar-BSG-allgrain.pdf]]
 
+
+
+** Plot drift velocity versus rad/gas pressure ratio
+
++ First of all, look at \tau_\nu in the final zone bu using the continuum
+
+#+name: tau-plot
+#+header: :var DENID="n00"
+#+BEGIN_SRC python :return pltfile :results file
+  import numpy as np
+  from matplotlib import pyplot as plt
+  import seaborn as sns
+  from astropy.table import Table
+  from astropy import units as u
+  from astropy.constants import k_B
+  from cloudytab import CloudyModel
+
+  pltfile = f'tau-{DENID}.pdf'
+  fig, ax = plt.subplots()
+
+  for star in "MS10", "MS20", "MS40", "BSG":
+      prefix = f"dustrad-{DENID}-{star}"
+      m = CloudyModel(f'models/{prefix}')
+      nu = m.data['cont']['Cont  nu']
+      nuFnu_inc = m.data['cont']['incident'] 
+      nuFnu_trans = m.data['cont']['trans'] 
+      nuFnu_tot = m.data['cont']['total'] 
+      tau_nu = -np.log(m.data['cont']['trans'] / m.data['cont']['incident'] )
+      ax.plot(nu, tau_nu, label=star)
+
+  ax.legend(title=DENID)
+  ax.axvspan(912.0/2000.0, 1.0, color='0.9')
+  ax.axvspan(1.0, 4.0, color='0.95')
+
+  ax.set(
+      xlim=[0.05, 4.0],
+      ylim=[0.004, 200.0],
+      yscale='log',
+      xscale='log',
+      xlabel='Photon energy, Rydberg',
+      ylabel=r'$\tau_{\nu}$',
+  )
+
+  fig.savefig(pltfile)
+
+#+END_SRC
+
+#+RESULTS: tau-plot
+[[file:tau-n00.pdf]]
+
+#+call: tau-plot("n04")
+
+#+RESULTS:
+[[file:tau-n04.pdf]]
+
+Then we use these to find the local fluxes and determine radiation pressure
+
+#+name: tau-plot
+#+header: :var DENID="n00"
+#+BEGIN_SRC python :return pltfile :results file
+  import numpy as np
+  from matplotlib import pyplot as plt
+  import seaborn as sns
+  from astropy.table import Table
+  from astropy import units as u
+  from astropy.constants import k_B
+  from cloudytab import CloudyModel
+
+  stars = [
+      ["MS10", 0.63],
+      ["MS20", 5.45],
+      ["MS40", 22.2],
+      ["BSG", 30.2]
+  ]
+
+  denids = [f"n0{_}" for _ in range(5)]
+
+  pltfile = f'tau-{DENID}.pdf'
+  fig, ax = plt.subplots()
+
+  for star, L4 in stars:
+      L = 1e4*3.82e33*L4
+      for denid in denids:
+          # Read model 
+          prefix = f"dustrad-{denid}-{star}"
+          m = CloudyModel(f'models/{prefix}')
+
+          # Find tau
+          nu = m.data['cont']['Cont  nu']
+          nuFnu_inc = m.data['cont']['incident'] 
+          nuFnu_trans = m.data['cont']['trans']
+          tau_nu = -np.log(m.data['cont']['trans'] / m.data['cont']['incident'] )
+
+          # F_nu spectrum that is normalized to unity
+          Fnu_0 = nuFnu_inc / nu
+          Fnu_0 /= Fnu_0.sum()
+        
+          # Masks for non-ionizing and ionizing radiation
+          mfuv = nu <= 1.0
+          meuv = ~mfuv
+
+
+          # Scale of tau with radius
+          # For FUV, it is just column density - proprtional to depth at constant density
+          depth = m.data['ovr']['depth']
+          tau_rscale_fuv = depth / depth[-1]
+          # For EUV, it is neutral column density
+          nzones = len(depth)
+          nH0 = m.data['ovr']['hden']*m.data['ovr']['HI']
+          tau_rscale_euv = np.array([np.trapz(nH0[:i], depth[:i]) for i in len(nzones)])
+        
+          for radius in m.data['rad']['radius']:
+              Fnorm = L / (4*p.pi*radius**2)
+              Fnu = np.emptylike(Fnu_0)
+              Fnu[mfuv] = 
+
+        
+        
+      ax.plot(nu, tau_nu, label=star)
+
+  ax.legend(title=DENID)
+  ax.axvspan(912.0/2000.0, 1.0, color='0.9')
+  ax.axvspan(1.0, 4.0, color='0.95')
+
+  ax.set(
+      xlim=[0.05, 4.0],
+      ylim=[0.004, 200.0],
+      yscale='log',
+      xscale='log',
+      xlabel='Photon energy, Rydberg',
+      ylabel=r'$\tau_{\nu}$',
+  )
+
+  fig.savefig(pltfile)
+
+#+END_SRC
+
 ** Multi-panels for a single run
 :PROPERTIES:
 :ID:       7081EFE5-65A5-4662-B298-B236BC13AC40
@@ -529,10 +666,10 @@ CLOSED: [2018-03-16 Fri 10:55]
 #+RESULTS:
 [[file:spectra-dustrad-n04-MS40.pdf]]
 
-#+call: make-sed(PREFIX="dustrad-n01-BSG")
+#+call: make-sed(PREFIX="dustrad-n00-BSG")
 
 #+RESULTS:
-[[file:spectra-dustrad-n01-BSG.pdf]]
+[[file:spectra-dustrad-n00-BSG.pdf]]
 
 #+call: make-sed(PREFIX="dustrad-n04-BSG")
 
