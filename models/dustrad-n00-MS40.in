@@ -1,24 +1,27 @@
 title Dust radiative acceleration: star MS40, density 1.0 pcc
 set save prefix "dustrad-n00-MS40"
 # MS40 star
+# T_eff = 42500 K, L = 2.22e+05 L_sun, log(g) = 4.20
 table star tlusty OBstar 3-dim 42500 4.2 0.0
-luminosity 34.93
+luminosity 38.93
 hden 0.00 # density of 1.0 pcc
-# Start close in: 0.01825 pc
-radius 16.75062746721819
+# Start close in: 0.18251 pc
+radius 17.75062746721819
 # Go into PDR a bit
-stop temperature 1000 K linear
-stop efrac 0.001
-stop Lyman optical depth = 5
+stop temperature 4000 K linear
 iterate
-abundances HII region
+sphere
+grains ism function sublimation
+abundances HII region no grains
 cosmic ray background
+cmb
+table ism 
 # save all the output we want
 save overview last ".ovr"
 save physical conditions last ".phys"
 save continuum last ".cont"
 save radius last ".rad"
-save interactive continuum last ".icont"
+save grain abundance last ".gabun"
 save grain charge last ".gcharge"
 save grain continuum last ".gcont"
 save grain drift velocity last ".gdrift"

@@ -27,10 +27,13 @@ CLOSED: [2018-03-16 Fri 10:55]
   from textwrap import dedent
   import numpy as np
 
-  def star_input(id_, L_Lsun, T3, log_g):
+  LSUN = 3.82e33
+
+  def star_input(id_, L4, T3, log_g):
       s = f"# {id_} star" + "\n"
+      s += f"# T_eff = {1e3*T3:.0f} K, L = {1e4*L4:.2e} L_sun, log(g) = {log_g:.2f}" + "\n"
       s += f"table star tlusty OBstar 3-dim {1e3*T3:.0f} {log_g} 0.0" + "\n"
-      s += f"luminosity {np.log10(3.82e33*L_Lsun):.2f}" + "\n"
+      s += f"luminosity {np.log10(LSUN*1e4*L4):.2f}" + "\n"
       return s
 
   def hden_input(hden):
@@ -45,16 +48,16 @@ CLOSED: [2018-03-16 Fri 10:55]
       return s
 
   stars = [
-      # id_  L_Lsun  T3    log_g
+      # id_   L4     T3    log_g
       ["MS10", 0.63, 25.2, 4.2],
       ["MS20", 5.45, 33.9, 4.2],
       ["MS40", 22.2, 42.5, 4.2],
       ["BSG",  30.2, 23.5, 3.4],
   ]
 
-  def radius_input(L_Lsun, hden):
+  def radius_input(L4, hden):
       # Scale R_in to give same F_bol / N as the MS10 model with hden=1
-      R_in = 3e15 * np.sqrt((L_Lsun/0.63) * 10**(1.0 - hden))
+      R_in = 3e16 * np.sqrt((L4/0.63) * 10**(1.0 - hden))
       s = f"# Start close in: {R_in/3.085677582e18:.5f} pc" + "\n"
       s += f"radius {np.log10(R_in)}" + "\n"
       return s
@@ -62,20 +65,20 @@ CLOSED: [2018-03-16 Fri 10:55]
 
   outro_input = dedent("""\
   # Go into PDR a bit
-  stop temperature 1000 K linear
-  stop efrac 0.001
-  stop Lyman optical depth = 5
+  stop temperature 4000 K linear
   iterate
   sphere
-  abundances HII region
+  grains ism function sublimation
+  abundances HII region no grains
   cosmic ray background
   cmb
+  table ism 
   # save all the output we want
   save overview last ".ovr"
   save physical conditions last ".phys"
   save continuum last ".cont"
   save radius last ".rad"
-  save interactive continuum last ".icont"
+  save grain abundance last ".gabun"
   save grain charge last ".gcharge"
   save grain continuum last ".gcont"
   save grain drift velocity last ".gdrift"
@@ -83,13 +86,12 @@ CLOSED: [2018-03-16 Fri 10:55]
   save grain temperature last ".gtemp"
   """)
 
-
   for hden in 0.0, 1.0, 2.0, 3.0, 4.0:
-      for id_, L_Lsun, T3, log_g in stars:
+      for id_, L4, T3, log_g in stars:
           cloudy_input = (intro_input(hden, id_)
-                          + star_input(id_, L_Lsun, T3, log_g)
+                          + star_input(id_, L4, T3, log_g)
                           + hden_input(hden)
-                          + radius_input(L_Lsun, hden)
+                          + radius_input(L4, hden)
                           + outro_input)
           file_name = f"models/{file_stem(hden, id_)}.in"
           with open(file_name, "w") as f:
@@ -251,35 +253,45 @@ CLOSED: [2018-03-16 Fri 10:55]
       modelid = prefix.replace("models/dustrad-", "")  # e.g., n03-MS10
       models.append([modelid, CloudyModel(prefix)])
 
-
+  sns.set_color_codes("deep")
   fig, ax = plt.subplots()
   colors = sns.color_palette(palette="magma_r", n_colors=len(models))
+  fastlabel = r"$w_\mathrm{drift} > 10$ km/s"
+  fastishlabel = r"$w_\mathrm{drift} > 1$ km/s"
   for color, [label, m] in zip(colors, sorted(models)):
       # Ionization parameter, estimated as x^2 / (1 - x)
       # (Initially, we neglect correction for alpha(T) and sigma(tau))
       ipar = m.data["ovr"]["HII"]**2 / m.data["ovr"]["HI"]
-
       for grain in m.data["gpot"].colnames[1:]:
           # Grain potential divided by kT
           gpot = m.data["gpot"][grain]*u.eV / (m.data["ovr"]["Te"]*u.K*k_B).to(u.eV)
           ls = '--' if grain.startswith("gra") else '-'
-          ax.plot(ipar, gpot, alpha=0.8, color=color, ls=ls, lw=0.3)
-          m2 = m.data["gdrift"][grain] >= 5.0
-          m1 = (m.data["gdrift"][grain] >= 0.5) & ~m2
-          ax.scatter(ipar[m2], gpot[m2],
-                     marker='.', alpha=0.6, color='c', edgecolors='none')
-          ax.scatter(ipar[m1], gpot[m1],
-                     marker='.', alpha=0.6, color='g', edgecolors='none')
+          # Only plot where grains are not sublimated
+          mm = m.data["gabun"][grain] >= 0.3*m.data["gabun"][grain].max()
+          ax.plot(ipar[mm], gpot[mm], alpha=0.8, color=color, ls=ls, lw=0.4, label=label)
+          m2 = m.data["gdrift"][grain] >= 10.0
+          m1 = (m.data["gdrift"][grain] >= 1.0) & ~m2
+          ax.scatter(ipar[m2 & mm], gpot[m2 & mm], label=fastlabel,
+                     marker='.', s=60, alpha=0.8, color='c', edgecolors='none')
+          ax.scatter(ipar[m1 & mm], gpot[m1 & mm], label=fastishlabel,
+                     marker='.', s=40, alpha=0.8, color='b', edgecolors='none')
+          label = '_nolabel_' # Only label first grain component
+          fastlabel = '_nolabel_' 
+          fastishlabel = '_nolabel_' 
 
+  ax.legend()
   ax.axvspan(0.0111, 8.1, color='k', alpha=0.1)    # x = 0.1 -> 0.9
   ax.axhspan(-1.0, 1.0, color='k', alpha=0.1)      # |phi| < 1
   #ax.legend(title=GRAIN)
+  ax.text(0.0015, -3.0, "PDR", ha="center")
+  ax.text(0.3, -3.0, "Ionization\nfront", ha="center")
+  ax.text(200, -3.0, "H II region", ha="center")
   ax.set(
       xscale='log',
       yscale='symlog',
-      xlabel="Ionization parameter",
-      ylabel="Grain potential / k T",
-      xlim=[3e-5, 3e6],
+      xlabel="Hydrogen ionization: $x^{2} / (1 - x)$",
+      ylabel="Grain potential / $k T$",
+      xlim=[3e-4, 3e8],
       ylim=[-5.0, 50.0],
   )
   sns.despine()
@@ -323,7 +335,7 @@ CLOSED: [2018-03-16 Fri 10:55]
 
   sns.set_palette("Reds_d", n_colors=10)
   sns.set_color_codes()
-  fig, axes = plt.subplots(4, 1, sharex=True, figsize=(6, 9))
+  fig, axes = plt.subplots(5, 1, sharex=True, figsize=(6, 9))
   radius_pc = (m.data["rad"]["radius"])*u.cm.to(u.pc)
   kT_eV = (m.data["ovr"]["Te"]*u.K*k_B).to(u.eV)
 
@@ -334,15 +346,18 @@ CLOSED: [2018-03-16 Fri 10:55]
           style = dict(lw=0.6, alpha=1.0, ls='--')
       axes[-1].plot(radius_pc, m.data["gdrift"][gtype], label=gtype, **style)
       axes[-2].plot(radius_pc, m.data["gpot"][gtype], label=gtype, **style)
-      axes[0].plot(radius_pc, m.data["gtemp"][gtype], label=gtype, **style)
+      axes[-3].plot(radius_pc, m.data["gabun"][gtype], label=gtype, **style)
+      mm = m.data["gabun"][gtype] >= 0.3*m.data["gabun"][gtype].max()
+      axes[0].plot(radius_pc[mm], m.data["gtemp"][gtype][mm], label=gtype, **style)
 
   axes[0].plot(radius_pc, m.data["ovr"]["Te"], color='g')
   axes[1].plot(radius_pc, m.data["phys"]["accel"], color='r')
-
+  axes[-3].plot(radius_pc, m.data["gabun"]["total"], color='g', lw=1.5)
+  abun_max = m.data["gabun"]["total"].max()
 
   axes[-2].plot(radius_pc, kT_eV)
   axes[-2].axhline(0.0, color='0.5', lw=0.5)
-  axes[-1].legend(ncol=2, loc="lower left", fontsize="xx-small")
+  axes[-3].legend(ncol=2, loc="lower right", fontsize="xx-small")
   axes[0].set(
       xscale="log",
       yscale="log",
@@ -352,6 +367,12 @@ CLOSED: [2018-03-16 Fri 10:55]
   axes[1].set(
       yscale="log",
       ylabel="Acceleration",
+  )
+  axes[-3].set(
+      xscale="log",
+      yscale="log",
+      ylabel="Grain abundance",
+      ylim=[0.003*abun_max, 1.5*abun_max]
   )
   axes[-2].set(
       xscale="log",
@@ -395,6 +416,11 @@ CLOSED: [2018-03-16 Fri 10:55]
 #+RESULTS:
 [[file:models/dustrad-n00-BSG.png]]
 
+#+call: make-plot(PREFIX="dustrad-n01-BSG")
+
+#+RESULTS:
+[[file:models/dustrad-n01-BSG.png]]
+
 #+call: make-plot(PREFIX="dustrad-n04-BSG")
 
 #+RESULTS:
@@ -430,6 +456,15 @@ CLOSED: [2018-03-16 Fri 10:55]
 #+RESULTS:
 [[file:models/dustrad-n00-MS20.png]]
 
+#+call: make-plot(PREFIX="dustrad-n01-MS10")
+
+#+RESULTS:
+[[file:models/dustrad-n01-MS10.png]]
+
+#+call: make-plot(PREFIX="dustrad-n02-MS10")
+
+#+RESULTS:
+[[file:models/dustrad-n02-MS10.png]]
 
 
 * Look at continuum spectrum 
@@ -474,7 +509,7 @@ CLOSED: [2018-03-16 Fri 10:55]
   ax.text(1.5, 2e-4*vmax, f"EUV\n{100*L_euv/L_bol:.1f}%")
   ax.set(
       xlim=[0.05, 4.0],
-      ylim=[1e-4*vmax, 2.*vmax],
+      ylim=[1e-6*vmax, 2.*vmax],
       yscale='log',
       xscale='log',
       xlabel='Photon energy, Rydberg',
@@ -494,10 +529,20 @@ CLOSED: [2018-03-16 Fri 10:55]
 #+RESULTS:
 [[file:spectra-dustrad-n04-MS40.pdf]]
 
+#+call: make-sed(PREFIX="dustrad-n01-BSG")
+
+#+RESULTS:
+[[file:spectra-dustrad-n01-BSG.pdf]]
+
 #+call: make-sed(PREFIX="dustrad-n04-BSG")
 
 #+RESULTS:
 [[file:spectra-dustrad-n04-BSG.pdf]]
+
+#+call: make-sed(PREFIX="dustrad-n04-MS10")
+
+#+RESULTS:
+[[file:spectra-dustrad-n04-MS10.pdf]]
 
 #+call: make-sed(PREFIX="dustrad-n00-MS10")
 
