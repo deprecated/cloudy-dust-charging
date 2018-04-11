@@ -321,7 +321,7 @@ CLOSED: [2018-03-16 Fri 10:55]
 
 ** Plot drift velocity versus rad/gas pressure ratio
 
-+ First of all, look at \tau_\nu in the final zone bu using the continuum
++ First of all, look at \tau_\nu in the final zone by using the continuum
 
 #+name: tau-plot
 #+header: :var DENID="n00"
@@ -374,12 +374,9 @@ CLOSED: [2018-03-16 Fri 10:55]
 
 Then we use these to find the local fluxes and determine radiation pressure
 
-#+name: tau-plot
-#+header: :var DENID="n00"
-#+BEGIN_SRC python :return pltfile :results file
+#+name: write-flux-tables
+#+BEGIN_SRC python 
   import numpy as np
-  from matplotlib import pyplot as plt
-  import seaborn as sns
   from astropy.table import Table
   from astropy import units as u
   from astropy.constants import k_B
@@ -393,10 +390,6 @@ Then we use these to find the local fluxes and determine radiation pressure
   ]
 
   denids = [f"n0{_}" for _ in range(5)]
-
-  pltfile = f'tau-{DENID}.pdf'
-  fig, ax = plt.subplots()
-
   for star, L4 in stars:
       L = 1e4*3.82e33*L4
       for denid in denids:
@@ -410,49 +403,165 @@ Then we use these to find the local fluxes and determine radiation pressure
           nuFnu_trans = m.data['cont']['trans']
           tau_nu = -np.log(m.data['cont']['trans'] / m.data['cont']['incident'] )
 
-          # F_nu spectrum that is normalized to unity
+          # F_nu spectrum that is normalized to unit integral
           Fnu_0 = nuFnu_inc / nu
-          Fnu_0 /= Fnu_0.sum()
-        
+          Fnu_0 /= np.trapz(Fnu_0, nu)
+
           # Masks for non-ionizing and ionizing radiation
-          mfuv = nu <= 1.0
+          mfuv = nu < 1.0
           meuv = ~mfuv
 
-
-          # Scale of tau with radius
+          # Scale of tau with radius, normalized on [0, 1]
           # For FUV, it is just column density - proprtional to depth at constant density
           depth = m.data['ovr']['depth']
           tau_rscale_fuv = depth / depth[-1]
           # For EUV, it is neutral column density
           nzones = len(depth)
           nH0 = m.data['ovr']['hden']*m.data['ovr']['HI']
-          tau_rscale_euv = np.array([np.trapz(nH0[:i], depth[:i]) for i in len(nzones)])
+          tau_rscale_euv = np.array([np.trapz(nH0[:i], depth[:i]) for i in range(nzones)])
+          tau_rscale_euv /= tau_rscale_euv[-1]
         
-          for radius in m.data['rad']['radius']:
-              Fnorm = L / (4*p.pi*radius**2)
-              Fnu = np.emptylike(Fnu_0)
-              Fnu[mfuv] = 
+          # Extinction factor e^(-tau) as function of depth for fuv and euv
+          extinct_fuv = np.array(
+              [np.trapz(Fnu_0[mfuv]*np.exp(-tau_nu[mfuv]*tau_rscale_fuv[i]), nu[mfuv])
+               for i in range(nzones)])
+          extinct_euv = np.array(
+              [np.trapz(Fnu_0[meuv]*np.exp(-tau_nu[meuv]*tau_rscale_euv[i]), nu[meuv])
+               for i in range(nzones)])
+          radius = m.data['rad']['radius']
+          # Flux in each band
+          F_fuv = L * extinct_fuv / (4*np.pi*radius**2)
+          F_euv = L * extinct_euv / (4*np.pi*radius**2)
+          F_bol = F_fuv + F_euv
 
+          tab = Table(
+              [radius, F_bol, F_fuv, F_euv, extinct_fuv, extinct_euv, tau_rscale_fuv, tau_rscale_euv],
+              names=('R', 'F', 'F_F', 'F_E', 'E_F', 'E_E', 'T_F', 'T_E')
+          )
+          tab.write(f'models/{prefix}.flux',
+                    format='ascii.commented_header',
+                    formats={_: "%.4g" for _ in tab.colnames},
+                    delimiter='\t', overwrite=True)
         
-        
-      ax.plot(nu, tau_nu, label=star)
+#+END_SRC
 
-  ax.legend(title=DENID)
-  ax.axvspan(912.0/2000.0, 1.0, color='0.9')
-  ax.axvspan(1.0, 4.0, color='0.95')
+#+RESULTS: write-flux-tables
+: None
+
+This works OK, but it has the disadvantage that it ignores the dust extinction in the EUV
+
+
+#+name: fluxes-plot
+#+header: :var PREFIX="n00-MS10"
+#+BEGIN_SRC python :return pltfile :results file
+  import numpy as np
+  from matplotlib import pyplot as plt
+  import seaborn as sns
+  from astropy.table import Table
+  from astropy import units as u
+  from astropy.constants import k_B
+  from cloudytab import CloudyModel
+
+  pltfile = f'fluxes-{PREFIX}.pdf'
+  fig, ax = plt.subplots()
+
+  F_habing = 1.6e-3
+
+  prefix = f"dustrad-{PREFIX}"
+  m = CloudyModel(f'models/{prefix}')
+  R = m.data['flux']['R'] / 3.085677582e18
+  hden = m.data['ovr']['hden']
+  ax.plot(R, m.data['flux']['F_F'] / (F_habing*hden), label='G(FUV) / n')
+  ax.plot(R, m.data['flux']['F_E'] / (F_habing*hden), label='G(EUV) / n')
+
+
+  ax.legend(title=PREFIX)
 
   ax.set(
-      xlim=[0.05, 4.0],
-      ylim=[0.004, 200.0],
       yscale='log',
       xscale='log',
-      xlabel='Photon energy, Rydberg',
-      ylabel=r'$\tau_{\nu}$',
+      xlabel='Radius, pc',
+      ylabel=r'Flux',
+      ylim=[2e-5, 2e5],
+      xlim=[0.8*R[0], 3000*R[0]],
   )
 
   fig.savefig(pltfile)
 
 #+END_SRC
+
+#+RESULTS: fluxes-plot
+[[file:fluxes-n00-MS10.pdf]]
+
+#+call: fluxes-plot("n04-MS10")
+
+#+RESULTS:
+[[file:fluxes-n04-MS10.pdf]]
+
+#+call: fluxes-plot("n01-MS40")
+
+#+RESULTS:
+[[file:fluxes-n01-MS40.pdf]]
+
+#+call: fluxes-plot("n04-MS40")
+
+#+RESULTS:
+[[file:fluxes-n04-MS40.pdf]]
+
+
+#+name: drift-pratio-plot
+#+BEGIN_SRC python :return pltfile :results file
+  import numpy as np
+  from matplotlib import pyplot as plt
+  import seaborn as sns
+  from astropy.table import Table
+  from astropy import units as u
+  from astropy.constants import k_B
+  from cloudytab import CloudyModel
+
+  pltfile = f'drift-pratio.pdf'
+  fig, ax = plt.subplots()
+
+  F_habing = 1.6e-3
+  light_speed = 2.99792458e10
+  kB = 1.3806503e-16
+  stars = [
+      ["MS10", 0.63],
+      ["MS20", 5.45],
+      ["MS40", 22.2],
+      ["BSG", 30.2]
+  ]
+
+  denids = [f"n0{_}" for _ in range(5)]
+  for star, L4 in stars:
+      L = 1e4*3.82e33*L4
+      for denid in denids:
+          # Read model 
+          prefix = f"dustrad-{denid}-{star}"
+          m = CloudyModel(f'models/{prefix}')
+
+          Prad = m.data['flux']['F_F']/light_speed
+          hden = m.data['ovr']['hden']
+          eden = m.data['ovr']['eden']
+          Te = m.data['ovr']['Te']
+          Pgas = (hden + eden)*kB*Te
+          for grain in m.data['gdrift'].colnames[1:]:
+              ax.plot(Prad/Pgas, m.data['gdrift'][grain], alpha=0.1)
+
+  ax.set(
+      yscale='log',
+      xscale='log',
+      xlabel='Prad / Pgas',
+      ylabel=r'V drift',
+      xlim=[1.0e-3, 4e3],
+  )
+
+  fig.savefig(pltfile)
+
+#+END_SRC
+
+#+RESULTS: drift-pratio-plot
+[[file:drift-pratio.pdf]]
 
 ** Multi-panels for a single run
 :PROPERTIES:
