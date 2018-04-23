@@ -3,7 +3,7 @@ set save prefix "dustrad-n00-MS10"
 # MS10 star
 # T_eff = 25200 K, L = 6.30e+03 L_sun, log(g) = 4.20
 table star tlusty OBstar 3-dim 25200 4.2 0.0
-luminosity 37.38
+luminosity total 37.38
 hden 0.00 # density of 1.0 pcc
 # Start close in: 0.03074 pc
 radius 16.977121254719663
@@ -20,6 +20,7 @@ table ism
 save overview last ".ovr"
 save physical conditions last ".phys"
 save continuum last ".cont"
+# save continuum last every ".zcont"
 save radius last ".rad"
 save grain abundance last ".gabun"
 save grain charge last ".gcharge"

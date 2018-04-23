@@ -22,6 +22,13 @@ CLOSED: [2018-03-16 Fri 10:55]
 + Do it
 
 
+
+* Check the ionizing luminosities
++ These should be similar to the ones I have in my table
++ Not the same!
++ Problem is the ~luminosity~ command by default is in ionizing photons only
+  + Need to add ~total~ keyword
+
 * Expand template for input files
 #+BEGIN_SRC python
   from textwrap import dedent
@@ -33,7 +40,7 @@ CLOSED: [2018-03-16 Fri 10:55]
       s = f"# {id_} star" + "\n"
       s += f"# T_eff = {1e3*T3:.0f} K, L = {1e4*L4:.2e} L_sun, log(g) = {log_g:.2f}" + "\n"
       s += f"table star tlusty OBstar 3-dim {1e3*T3:.0f} {log_g} 0.0" + "\n"
-      s += f"luminosity {np.log10(LSUN*1e4*L4):.2f}" + "\n"
+      s += f"luminosity total {np.log10(LSUN*1e4*L4):.2f}" + "\n"
       return s
 
   def hden_input(hden):
@@ -77,6 +84,7 @@ CLOSED: [2018-03-16 Fri 10:55]
   save overview last ".ovr"
   save physical conditions last ".phys"
   save continuum last ".cont"
+  # save continuum last every ".zcont"
   save radius last ".rad"
   save grain abundance last ".gabun"
   save grain charge last ".gcharge"

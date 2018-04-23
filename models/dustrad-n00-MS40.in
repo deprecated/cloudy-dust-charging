@@ -3,7 +3,7 @@ set save prefix "dustrad-n00-MS40"
 # MS40 star
 # T_eff = 42500 K, L = 2.22e+05 L_sun, log(g) = 4.20
 table star tlusty OBstar 3-dim 42500 4.2 0.0
-luminosity 38.93
+luminosity total 38.93
 hden 0.00 # density of 1.0 pcc
 # Start close in: 0.18251 pc
 radius 17.75062746721819
@@ -20,6 +20,7 @@ table ism
 save overview last ".ovr"
 save physical conditions last ".phys"
 save continuum last ".cont"
+# save continuum last every ".zcont"
 save radius last ".rad"
 save grain abundance last ".gabun"
 save grain charge last ".gcharge"
