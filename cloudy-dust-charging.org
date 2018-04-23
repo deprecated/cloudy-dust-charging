@@ -509,6 +509,65 @@ This works OK, but it has the disadvantage that it ignores the dust extinction i
 [[file:fluxes-n04-MS40.pdf]]
 
 
+Check ion fraction versus F(EUV)/n
+
+#+name: ion-param-plot
+#+BEGIN_SRC python :return pltfile :results file
+  import numpy as np
+  from matplotlib import pyplot as plt
+  import seaborn as sns
+  from astropy.table import Table
+  from astropy import units as u
+  from astropy.constants import k_B
+  from cloudytab import CloudyModel
+
+  pltfile = f'ion-params.pdf'
+  fig, ax = plt.subplots()
+
+  F_habing = 1.6e-3
+  light_speed = 2.99792458e10
+  kB = 1.3806503e-16
+  eV = 1.602176462e-12
+  stars = [
+      ["MS10", 0.63, 1.3e-4],
+      ["MS20", 5.45, 0.16],
+      ["MS40", 22.2, 1.41],
+      ["BSG", 30.2, 0.016]
+  ]
+
+  denids = [f"n0{_}" for _ in range(5)]
+  for star, L4, S49 in stars[0:2]:
+      L = 1e4*3.82e33*L4
+      L_EUV = 1e49*S49*13.6*eV
+      for denid in denids:
+          # Read model 
+          prefix = f"dustrad-{denid}-{star}"
+          m = CloudyModel(f'models/{prefix}')
+          R = m.data['rad']['radius']
+          G_n = m.data['flux']['F_E']/(F_habing*m.data['ovr']['hden'])
+          F_E0 = L_EUV / (4*np.pi*R**2)
+          Rm = R.max()
+          F_E0 *= (1. - (R/Rm)**3)
+          G_n0 = F_E0 / (F_habing*m.data['ovr']['hden'])
+          x = m.data['ovr']['HII']
+          ax.plot(G_n, x**2/(1 - x), alpha=0.6)
+          ax.plot(G_n0, x**2/(1 - x), alpha=0.6, lw=0.5)
+
+  ax.set(
+      yscale='log',
+      xscale='log',
+      xlabel='G(EUV) / n',
+      ylabel=r'$x^{2} / (1 - x)$',
+  )
+
+  fig.savefig(pltfile)
+
+#+END_SRC
+
+#+RESULTS: ion-param-plot
+[[file:ion-params.pdf]]
+
+
 #+name: drift-pratio-plot
 #+BEGIN_SRC python :return pltfile :results file
   import numpy as np
@@ -533,14 +592,14 @@ This works OK, but it has the disadvantage that it ignores the dust extinction i
   ]
 
   denids = [f"n0{_}" for _ in range(5)]
-  for star, L4 in stars:
+  for star, L4 in stars[2:3]:
       L = 1e4*3.82e33*L4
       for denid in denids:
           # Read model 
           prefix = f"dustrad-{denid}-{star}"
           m = CloudyModel(f'models/{prefix}')
 
-          Prad = m.data['flux']['F_F']/light_speed
+          Prad = m.data['flux']['F']/light_speed
           hden = m.data['ovr']['hden']
           eden = m.data['ovr']['eden']
           Te = m.data['ovr']['Te']
