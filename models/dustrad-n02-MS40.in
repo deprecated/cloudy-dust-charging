@@ -5,8 +5,8 @@ set save prefix "dustrad-n02-MS40"
 table star tlusty OBstar 3-dim 42500 4.2 0.0
 luminosity total 38.93
 hden 2.00 # density of 100.0 pcc
-# Start close in: 0.01825 pc
-radius 16.75062746721819
+# Start close in: 0.00608 pc
+radius 16.27350621249853
 # Go into PDR a bit
 stop temperature 4000 K linear
 iterate

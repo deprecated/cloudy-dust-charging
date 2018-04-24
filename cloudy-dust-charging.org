@@ -64,7 +64,7 @@ CLOSED: [2018-03-16 Fri 10:55]
 
   def radius_input(L4, hden):
       # Scale R_in to give same F_bol / N as the MS10 model with hden=1
-      R_in = 3e16 * np.sqrt((L4/0.63) * 10**(1.0 - hden))
+      R_in = 1e16 * np.sqrt((L4/0.63) * 10**(1.0 - hden))
       s = f"# Start close in: {R_in/3.085677582e18:.5f} pc" + "\n"
       s += f"radius {np.log10(R_in)}" + "\n"
       return s
@@ -537,20 +537,22 @@ Check ion fraction versus F(EUV)/n
   kB = 1.3806503e-16
   eV = 1.602176462e-12
   stars = [
-      ["MS10", 0.63, 1.3e-4],
-      ["MS20", 5.45, 0.16],
-      ["MS40", 22.2, 1.41],
-      ["BSG", 30.2, 0.016]
+      ["MS10", 0.63, 1.3e-4, 'Purples_d'   ],
+      ["MS20", 5.45,   0.16, 'Oranges_d'],
+      ["MS40", 22.2,   1.41, 'Blues_d'  ],
+      ["BSG", 30.2,   0.016, 'Greens_d' ]
   ]
 
   denids = [f"n0{_}" for _ in range(5)]
 
-  for star, L4, S49 in stars:
+  for star, L4, S49, cmap in stars:
       L = 1e4*3.82e33*L4
       L_EUV = 1e49*S49*13.6*eV
-      for denid in denids:
+      cols = sns.color_palette(cmap, n_colors=len(denids))
+      for denid, col in zip(denids, cols):
           # Read model 
           prefix = f"dustrad-{denid}-{star}"
+          label = f"{star} {denid}"
           m = CloudyModel(f'models/{prefix}')
           R = m.data['rad']['radius']
           G_n = m.data['flux']['F_E']/(F_habing*m.data['ovr']['hden'])
@@ -559,9 +561,10 @@ Check ion fraction versus F(EUV)/n
           F_E0 *= (1. - (R/Rm)**3)
           G_n0 = F_E0 / (F_habing*m.data['ovr']['hden'])
           x = m.data['ovr']['HII']
-          ax.plot(G_n, x**2/(1 - x), alpha=0.6)
-          ax.plot(G_n0, x**2/(1 - x), alpha=0.6, lw=0.5)
+          ax.plot(G_n, x**2/(1 - x), alpha=0.8, lw=0.6, color=col, label=label)
+          #ax.plot(G_n0, x**2/(1 - x), alpha=0.6, lw=0.5)
 
+  ax.legend(ncol=2, fontsize="x-small")
   ax.set(
       yscale='log',
       xscale='log',
@@ -595,10 +598,10 @@ Check ion fraction versus F(EUV)/n
   light_speed = 2.99792458e10
   kB = 1.3806503e-16
   stars = [
-      ["MS10", 0.63, 'Reds_d'],
+      ["MS10", 0.63, 'Purples_d'   ],
       ["MS20", 5.45, 'Oranges_d'],
-      ["MS40", 22.2, 'Blues_d'],
-      ["BSG", 30.2, 'Greens_d']
+      ["MS40", 22.2, 'Blues_d'  ],
+      ["BSG", 30.2,  'Greens_d' ]
   ]
 
   denids = [f"n0{_}" for _ in range(5)]
@@ -623,7 +626,7 @@ Check ion fraction versus F(EUV)/n
       xscale='log',
       xlabel='Prad / Pgas',
       ylabel=r'V drift',
-      xlim=[1.0e-3, 4e3],
+      xlim=[1.0e-2, 4e4],
   )
 
   fig.savefig(pltfile)
@@ -631,7 +634,7 @@ Check ion fraction versus F(EUV)/n
 #+END_SRC
 
 #+RESULTS: drift-pratio-plot
-[[file:drift-pratio.pdf]]
+[[file:drift-tdust.pdf]]
 
 
 #+name: drift-gn-plot
@@ -645,6 +648,70 @@ Check ion fraction versus F(EUV)/n
   from cloudytab import CloudyModel
 
   pltfile = f'drift-gn.pdf'
+  sns.set_color_codes("bright")
+  fig, ax = plt.subplots()
+
+  F_habing = 1.6e-3
+  light_speed = 2.99792458e10
+  kB = 1.3806503e-16
+  stars = [
+      ["MS10", 0.63, 'Purples_d'],
+      ["MS20", 5.45, 'Oranges_d'],
+      ["MS40", 22.2, 'Blues_d'],
+      ["BSG", 30.2, 'Greens_d']
+  ]
+
+  denids = [f"n0{_}" for _ in range(5)]
+  for star, L4, cmap in stars:
+      L = 1e4*3.82e33*L4
+      cols = sns.color_palette(cmap, n_colors=len(denids))
+      for denid, col in zip(denids, cols):
+          # Read model 
+          prefix = f"dustrad-{denid}-{star}"
+          m = CloudyModel(f'models/{prefix}')
+
+          Prad = m.data['flux']['F']/light_speed
+          hden = m.data['ovr']['hden']
+          eden = m.data['ovr']['eden']
+          Te = m.data['ovr']['Te']
+          Pgas = (hden + eden)*kB*Te
+          Fbol = L / (4*np.pi*m.data['rad']['radius']**2)
+          G_n = m.data['flux']['F_F']/(F_habing*m.data['ovr']['hden'])
+          # G_n = Fbol/(F_habing*m.data['ovr']['hden'])
+          for grain in m.data['gdrift'].colnames[1:2:]:
+              mm = m.data["gabun"][grain] >= 0.9*m.data["gabun"][grain].max()
+              msub = m.data['gdrift'][grain] < 20.0
+              ax.plot(G_n[mm & msub], m.data['gdrift'][grain][mm & msub], alpha=0.7, lw=0.5, color=col)
+              ax.plot(G_n[mm & ~msub], m.data['gdrift'][grain][mm & ~msub], alpha=0.7, lw=0.5, color=col)
+
+  ax.set(
+      yscale='log',
+      xscale='log',
+      xlabel='$G / n$',
+      ylabel=r'$V_\mathrm{drift}$, km/s',
+      xlim=[3.0e-1, 3.0e6],
+  )
+
+  fig.savefig(pltfile)
+
+#+END_SRC
+
+#+RESULTS: drift-gn-plot
+[[file:drift-gn.pdf]]
+
+
+** Drift velocity against dust temperature
+#+name: drift-tdust-plot
+#+BEGIN_SRC python :return pltfile :results file
+  import numpy as np
+  from matplotlib import pyplot as plt
+  import seaborn as sns
+  from astropy.table import Table
+  from astropy import units as u
+  from astropy.constants import k_B
+  from cloudytab import CloudyModel
+
+  pltfile = f'drift-tdust.pdf'
   sns.set_color_codes("bright")
   fig, ax = plt.subplots()
 
@@ -672,25 +739,91 @@ Check ion fraction versus F(EUV)/n
           eden = m.data['ovr']['eden']
           Te = m.data['ovr']['Te']
           Pgas = (hden + eden)*kB*Te
-          G_n = m.data['flux']['F_F']/(F_habing*m.data['ovr']['hden'])
-          for grain in m.data['gdrift'].colnames[20:21:]:
-              ax.plot(G_n, m.data['gdrift'][grain], alpha=0.7, lw=0.5, color=col)
+          for grain in m.data['gdrift'].colnames[1:]:
+              mm = m.data["gabun"][grain] >= 0.3*m.data["gabun"][grain].max()
+              ax.plot(m.data["gtemp"][grain][mm], m.data['gdrift'][grain][mm],
+                      alpha=0.7, lw=0.5, color=col)
 
   ax.set(
       yscale='log',
       xscale='log',
-      xlabel='$G / n$',
-      ylabel=r'$V_\mathrm{drift}$, km/s',
-      xlim=[1.0e-1, 1e6],
+      xlabel=r'$T_\mathrm{grain}$',
+      ylabel=r'$V_\mathrm{drift}$',
+      xlim=[10.0, 3000.0],
   )
 
   fig.savefig(pltfile)
 
 #+END_SRC
 
-#+RESULTS: drift-gn-plot
-[[file:drift-gn.pdf]]
+#+RESULTS: drift-tdust-plot
+[[file:drift-tdust.pdf]]
 
+
+** Drift velocity against hydrogen ionization
+#+name: drift-xH-plot
+#+BEGIN_SRC python :return pltfile :results file
+  import numpy as np
+  from matplotlib import pyplot as plt
+  import seaborn as sns
+  from astropy.table import Table
+  from astropy import units as u
+  from astropy.constants import k_B
+  from cloudytab import CloudyModel
+
+  pltfile = f'drift-xH.pdf'
+  sns.set_color_codes("bright")
+  fig, ax = plt.subplots()
+
+  F_habing = 1.6e-3
+  light_speed = 2.99792458e10
+  kB = 1.3806503e-16
+  stars = [
+      ["MS10", 0.63, 'Purples_d'],
+      ["MS20", 5.45, 'Oranges_d'],
+      ["MS40", 22.2, 'Blues_d'],
+      ["BSG", 30.2, 'Greens_d']
+  ]
+
+  denids = [f"n0{_}" for _ in range(5)]
+  for star, L4, cmap in stars:
+      L = 1e4*3.82e33*L4
+      cols = sns.color_palette(cmap, n_colors=len(denids))
+      for denid, col in zip(denids, cols):
+          # Read model 
+          prefix = f"dustrad-{denid}-{star}"
+          m = CloudyModel(f'models/{prefix}')
+
+          Prad = m.data['flux']['F']/light_speed
+          hden = m.data['ovr']['hden']
+          eden = m.data['ovr']['eden']
+          Te = m.data['ovr']['Te']
+          Pgas = (hden + eden)*kB*Te
+          Fbol = L / (4*np.pi*m.data['rad']['radius']**2)
+          G_n = m.data['flux']['F_F']/(F_habing*m.data['ovr']['hden'])
+          # G_n = Fbol/(F_habing*m.data['ovr']['hden'])
+          x = m.data['ovr']['HII']
+          xx = x**2 / (1.0 - x)
+          for grain in m.data['gdrift'].colnames[1::2]:
+              mm = m.data["gabun"][grain] >= 0.9*m.data["gabun"][grain].max()
+              msub = m.data['gdrift'][grain] < 10.0
+              ax.plot(xx[mm & msub], m.data['gdrift'][grain][mm & msub], alpha=0.7, lw=0.5, color=col)
+              ax.plot(xx[mm & ~msub], m.data['gdrift'][grain][mm & ~msub], alpha=0.7, lw=0.5, color=col)
+
+  ax.set(
+      yscale='log',
+      xscale='log',
+      xlabel='$x^{2} / (1 - x)$',
+      ylabel=r'$V_\mathrm{drift}$, km/s',
+      xlim=[1e-3, 2.0e5],
+  )
+
+  fig.savefig(pltfile)
+
+#+END_SRC
+
+#+RESULTS: drift-xH-plot
+[[file:drift-xH.pdf]]
 
 ** Multi-panels for a single run
 :PROPERTIES:
@@ -768,7 +901,7 @@ Check ion fraction versus F(EUV)/n
 #+END_SRC
 
 #+RESULTS: make-plot
-[[file:models/test-dust-tlusty.png]]
+[[file:]]
 
 
 #+call: make-plot(PREFIX="dustrad-n03-MS10")
