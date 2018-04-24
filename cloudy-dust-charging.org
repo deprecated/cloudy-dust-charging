@@ -675,7 +675,6 @@ Check ion fraction versus F(EUV)/n
 
   pltfile = f'drift-gn.pdf'
   sns.set_color_codes("bright")
-  fig, ax = plt.subplots()
 
   F_habing = 1.6e-3
   light_speed = 2.99792458e10
@@ -687,30 +686,39 @@ Check ion fraction versus F(EUV)/n
       ["BSG", 30.2, 'Greens_d']
   ]
 
-  denids = [f"n0{_}" for _ in range(5)]
-  for star, L4, cmap in stars:
-      L = 1e4*3.82e33*L4
-      cols = sns.color_palette(cmap, n_colors=len(denids))
-      for denid, col in zip(denids, cols):
-          # Read model 
-          prefix = f"dustrad-{denid}-{star}"
-          m = CloudyModel(f'models/{prefix}')
 
-          Prad = m.data['flux']['F']/light_speed
-          hden = m.data['ovr']['hden']
-          eden = m.data['ovr']['eden']
-          Te = m.data['ovr']['Te']
-          Pgas = (hden + eden)*kB*Te
-          Fbol = L / (4*np.pi*m.data['rad']['radius']**2)
-          G_n = m.data['flux']['F_F']/(F_habing*m.data['ovr']['hden'])
-          # G_n = Fbol/(F_habing*m.data['ovr']['hden'])
-          for grain in m.data['gdrift'].colnames[1:2:]:
+  select_grains = "sil-ism04", "sil-ism10", "gra-ism04", "gra-ism10"
+  fig, axes = plt.subplots(2, 2, sharex=True, sharey=True, figsize=(10, 5))
+
+  denids = [f"n0{_}" for _ in range(5)]
+
+  for grain, ax in zip(select_grains, axes.flat):
+      for star, L4, cmap in stars:
+          L = 1e4*3.82e33*L4
+          cols = sns.color_palette(cmap, n_colors=len(denids))
+          for denid, col in zip(denids, cols):
+              # Read model 
+              prefix = f"dustrad-{denid}-{star}"
+              m = CloudyModel(f'models/{prefix}')
+
+              Prad = m.data['flux']['F']/light_speed
+              hden = m.data['ovr']['hden']
+              eden = m.data['ovr']['eden']
+              Te = m.data['ovr']['Te']
+              Pgas = (hden + eden)*kB*Te
+              Fbol = L / (4*np.pi*m.data['rad']['radius']**2)
+              G_n = m.data['flux']['F_F']/(F_habing*m.data['ovr']['hden'])
+              # G_n = Fbol/(F_habing*m.data['ovr']['hden'])
               mm = m.data["gabun"][grain] >= 0.9*m.data["gabun"][grain].max()
               msub = m.data['gdrift'][grain] < 20.0
-              ax.plot(G_n[mm & msub], m.data['gdrift'][grain][mm & msub], alpha=0.7, lw=0.5, color=col)
-              ax.plot(G_n[mm & ~msub], m.data['gdrift'][grain][mm & ~msub], alpha=0.7, lw=0.5, color=col)
+              ax.plot(G_n[mm & msub], m.data['gdrift'][grain][mm & msub],
+                      alpha=0.7, lw=0.5, color=col, label=f"{star} {denid}")
+              ax.plot(G_n[mm & ~msub], m.data['gdrift'][grain][mm & ~msub],
+                      alpha=0.7, lw=0.5, color=col, label="_nolabel_")
+      ax.set_title(grain, fontsize="x-small")
 
-  ax.set(
+  axes[0, 0].legend(ncol=2, fontsize="xx-small", loc="upper left")
+  axes[1, 0].set(
       yscale='log',
       xscale='log',
       xlabel='$G / n$',
