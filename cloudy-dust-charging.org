@@ -892,7 +892,7 @@ Check ion fraction versus F(EUV)/n
 
   sns.set_palette("Reds_d", n_colors=10)
   sns.set_color_codes()
-  fig, axes = plt.subplots(5, 1, sharex=True, figsize=(6, 9))
+  fig, axes = plt.subplots(4, 1, sharex=True, figsize=(6, 9))
   radius_pc = (m.data["rad"]["radius"])*u.cm.to(u.pc)
   kT_eV = (m.data["ovr"]["Te"]*u.K*k_B).to(u.eV)
 
@@ -908,8 +908,7 @@ Check ion fraction versus F(EUV)/n
       axes[0].plot(radius_pc[mm], m.data["gtemp"][gtype][mm], label=gtype, **style)
 
   axes[0].plot(radius_pc, m.data["ovr"]["Te"], color='g')
-  axes[1].plot(radius_pc, m.data["phys"]["accel"], color='r')
-  axes[-3].plot(radius_pc, m.data["gabun"]["total"], color='g', lw=1.5)
+  axes[-3].plot(radius_pc, m.data["gabun"]["total"], color='g', lw=1.5, label="_nolabel_")
   abun_max = m.data["gabun"]["total"].max()
 
   axes[-2].plot(radius_pc, kT_eV)
@@ -1008,6 +1007,11 @@ Check ion fraction versus F(EUV)/n
 #+RESULTS:
 [[file:models/dustrad-n04-MS20.png]]
 
+#+call: make-plot(PREFIX="dustrad-n00-MS40")
+
+#+RESULTS:
+[[file:models/dustrad-n00-MS40.png]]
+
 #+call: make-plot(PREFIX="dustrad-n00-MS20")
 
 #+RESULTS:
@@ -1022,6 +1026,90 @@ Check ion fraction versus F(EUV)/n
 
 #+RESULTS:
 [[file:models/dustrad-n02-MS10.png]]
+
+
+#+name: make-multiplot
+#+BEGIN_SRC python :return pltfile :results file :exports both
+  from matplotlib import pyplot as plt
+  import seaborn as sns
+  from astropy import units as u
+  from astropy.constants import k_B
+  from cloudytab import CloudyModel
+
+  pltfile = f'models/multi-dustprops.pdf'
+  selected_models = "n04-MS40", "n00-MS10", "n00-BSG"
+
+
+  sns.set_palette("Reds_d", n_colors=10)
+  sns.set_color_codes()
+  fig, axes = plt.subplots(4, 3, sharex="col", sharey="row", figsize=(12, 9))
+
+  for jcol, suffix in enumerate(selected_models):
+
+      m = CloudyModel(f'models/dustrad-{suffix}')
+
+      radius_pc = (m.data["rad"]["radius"])*u.cm.to(u.pc)
+      kT_eV = (m.data["ovr"]["Te"]*u.K*k_B).to(u.eV)
+
+      for gtype in m.data["gdrift"].colnames[1:]:
+          if gtype.startswith('sil'):
+              style = dict(lw=1.0, alpha=0.6, ls='-')
+          else:
+              style = dict(lw=0.6, alpha=1.0, ls='--')
+          axes[-3, jcol].plot(radius_pc, m.data["gabun"][gtype]/m.data["ovr"]["hden"],
+                              label=gtype, **style)
+          mm = m.data["gabun"][gtype] >= 0.5*m.data["gabun"][gtype].max()
+          axes[0, jcol].plot(radius_pc[mm], m.data["gtemp"][gtype][mm], label=gtype, **style)
+          axes[-1, jcol].plot(radius_pc[mm], m.data["gdrift"][gtype][mm], label=gtype, **style)
+          axes[-2, jcol].plot(radius_pc[mm], m.data["gpot"][gtype][mm], label=gtype, **style)
+
+      axes[0, jcol].plot(radius_pc, m.data["ovr"]["Te"], color='g')
+      axes[-3, jcol].plot(radius_pc, m.data["gabun"]["total"]/m.data["ovr"]["hden"],
+                          color='k', lw=1.5, label="_nolabel_")
+      abun_max = m.data["gabun"]["total"].max()
+
+      axes[-2, jcol].plot(radius_pc, kT_eV, color="g")
+      axes[-2, jcol].axhline(0.0, color='0.5', lw=0.5)
+      axes[0, jcol].set_title(suffix)
+
+
+  axes[0, 0].text(0.01, 6500, "Gas", color="g")
+  axes[0, 0].text(0.003, 200, "Grains", color="r")
+  axes[-2, 0].text(0.01, 0.4, "$k T$", color="g")
+  axes[-3, 1].legend(ncol=2, loc="center", fontsize="x-small", title="Grain type")
+  axes[0, 0].set(
+      xscale="log",
+      yscale="log",
+      ylabel="Temperature, K",
+      ylim=[15.0, 1.5e4],
+  )
+  axes[-3, 0].set(
+      xscale="log",
+      yscale="log",
+      ylabel="Grain abundance",
+      ylim=[3e-29, 2e-26]
+  )
+  axes[-2, 0].set(
+      xscale="log",
+      yscale="symlog",
+      yticks=[-1, 0, 1, 10],
+      yticklabels=["-1", "0", "1", "10"],
+      ylabel="Grain potential, eV",
+      ylim=[-3, 40.0]
+  )
+  axes[-1, 0].set(
+      yscale="log",
+      ylabel="Drift velocity, km/s"
+  )
+  for ax in axes[-1, :]:
+      ax.set(xscale="log", xlabel="Radius, pc")
+  sns.despine()
+  fig.tight_layout(h_pad=0.1)
+  fig.savefig(pltfile, dpi=300)
+#+END_SRC
+
+#+RESULTS: make-multiplot
+[[file:models/multi-dustprops.pdf]]
 
 
 * Look at continuum spectrum 
