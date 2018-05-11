@@ -640,12 +640,15 @@ Check ion fraction versus F(EUV)/n
           m = CloudyModel(f'models/{prefix}')
 
           Prad = m.data['flux']['F']/light_speed
+          R = m.data['rad']['radius']
+          Prad0 = L / (4*np.pi*light_speed*R**2)
           hden = m.data['ovr']['hden']
           eden = m.data['ovr']['eden']
           Te = m.data['ovr']['Te']
           Pgas = (hden + eden)*kB*Te
+          Pgas[eden < 0.5*hden] = np.nan
           for grain in m.data['gdrift'].colnames[1::5]:
-              ax.plot(Prad/Pgas, m.data['gdrift'][grain], alpha=0.7, lw=0.5, color=col)
+              ax.plot(Prad0/Pgas, m.data['gdrift'][grain], alpha=0.7, lw=0.5, color=col)
 
   ax.set(
       yscale='log',
@@ -660,7 +663,75 @@ Check ion fraction versus F(EUV)/n
 #+END_SRC
 
 #+RESULTS: drift-pratio-plot
-[[file:drift-tdust.pdf]]
+[[file:drift-pratio.pdf]]
+
+#+name: phi-pratio-plot
+#+BEGIN_SRC python :return pltfile :results file
+  import numpy as np
+  from matplotlib import pyplot as plt
+  import seaborn as sns
+  from astropy.table import Table
+  from astropy import units as u
+  from astropy.constants import k_B
+  from cloudytab import CloudyModel
+
+  pltfile = f'phi-pratio.pdf'
+  sns.set_color_codes("bright")
+  fig, ax = plt.subplots()
+
+  F_habing = 1.6e-3
+  light_speed = 2.99792458e10
+  kB = 1.3806503e-16
+  stars = [
+      ["MS10", 0.63, 'Purples_d'   ],
+      ["MS20", 5.45, 'Oranges_d'],
+      ["MS40", 22.2, 'Blues_d'  ],
+      ["BSG", 30.2,  'Greens_d' ]
+  ]
+
+  denids = [f"n0{_}" for _ in range(5)]
+  for star, L4, cmap in stars:
+      L = 1e4*3.82e33*L4
+      cols = sns.color_palette(cmap, n_colors=len(denids))
+      for denid, col in zip(denids, cols):
+          # Read model 
+          prefix = f"dustrad-{denid}-{star}"
+          m = CloudyModel(f'models/{prefix}')
+
+          kT_eV = (m.data["ovr"]["Te"]*u.K*k_B).to(u.eV)
+          Prad = m.data['flux']['F']/light_speed
+          R = m.data['rad']['radius']
+          Prad0 = L / (4*np.pi*light_speed*R**2)
+          hden = m.data['ovr']['hden']
+          eden = m.data['ovr']['eden']
+          Te = m.data['ovr']['Te']
+          Pgas = (hden + eden)*kB*Te
+          Pgas[eden < 0.5*hden] = np.nan
+          for grain in m.data['gpot'].colnames[1::5]:
+              phi = m.data['gpot'][grain] / kT_eV
+              ax.plot(Prad0/Pgas, phi, alpha=0.7, lw=0.5, color=col)
+
+  p1, p2 = 1.0e-2, 4e4
+  pgrid = np.logspace(-2.0, 4.6)
+  phifit = 1.5*np.log(pgrid/0.1) 
+  ax.plot(pgrid, phifit, lw=3, color="k")
+  ax.plot(pgrid, 1.5*phifit, lw=1, color="k")
+  ax.plot(pgrid, phifit/1.5, lw=1, color="k")
+
+  ax.set(
+      yscale='linear',
+      xscale='log',
+      xlabel='Prad / Pgas',
+      ylabel=r'$\phi$',
+      xlim=[pgrid[0], pgrid[-1]],
+  )
+
+  fig.savefig(pltfile)
+
+#+END_SRC
+
+#+RESULTS: phi-pratio-plot
+[[file:phi-pratio.pdf]]
 
 
 #+name: drift-gn-plot
@@ -748,6 +819,94 @@ Check ion fraction versus F(EUV)/n
 #+RESULTS: drift-gn-plot
 [[file:drift-gn.pdf]]
 
+#+name: drift-pratio-4panel-plot
+#+BEGIN_SRC python :return pltfile :results file
+  import numpy as np
+  from matplotlib import pyplot as plt
+  import seaborn as sns
+  from astropy.table import Table
+  from astropy import units as u
+  from astropy.constants import k_B
+  from cloudytab import CloudyModel
+
+  pltfile = f'drift-pratio-4panel.pdf'
+  sns.set_color_codes("bright")
+
+  F_habing = 1.6e-3
+  light_speed = 2.99792458e10
+  kB = 1.3806503e-16
+  stars = [
+      ["MS40", 22.2, 'Blues_d'],
+      ["MS20", 5.45, 'Oranges_d'],
+      ["MS10", 0.63, 'Purples_d'],
+      ["BSG", 30.2, 'Greens_d']
+  ]
+
+
+  select_grains = "sil-ism04", "sil-ism10", "gra-ism04", "gra-ism10"
+  glabel = {
+      "sil-ism04": "Silicate\n0.02 micron",
+      "sil-ism10": "Silicate\n0.2 micron",
+      "gra-ism04": "Graphite\n0.02 micron",
+      "gra-ism10": "Graphite\n0.2 micron" 
+  }
+  fig, axes = plt.subplots(2, 2, sharex=True, sharey=True, figsize=(10, 5))
+
+  denids = [f"n0{_}" for _ in range(5)]
+
+  for grain, ax in zip(select_grains, axes.flat):
+      for star, L4, cmap in stars:
+          L = 1e4*3.82e33*L4
+          cols = sns.color_palette(cmap, n_colors=len(denids))
+          for denid, col in zip(denids, cols):
+              # Read model 
+              prefix = f"dustrad-{denid}-{star}"
+              m = CloudyModel(f'models/{prefix}')
+
+              Prad = m.data['flux']['F']/light_speed
+              R = m.data['rad']['radius']
+              Prad0 = L / (4*np.pi*light_speed*R**2)
+              hden = m.data['ovr']['hden']
+              eden = m.data['ovr']['eden']
+              Te = m.data['ovr']['Te']
+              Pgas = (hden + eden)*kB*Te
+              Pgas[eden < 0.5*hden] = np.nan
+              Upsilon = Prad0/Pgas
+              Fbol = L / (4*np.pi*m.data['rad']['radius']**2)
+              G_n = m.data['flux']['F_F']/(F_habing*m.data['ovr']['hden'])
+              mm = m.data["gabun"][grain] >= 0.9*m.data["gabun"][grain].max()
+              msub = m.data['gdrift'][grain] < 20.0
+              if denid.endswith("00"):
+                  label = f"{denid} {star}"
+              else:
+                  label = f"{denid}"
+              ax.plot(Upsilon[mm & msub], m.data['gdrift'][grain][mm & msub],
+                      alpha=0.85, lw=0.7, color=col, label=label)
+              ax.plot(Upsilon[mm & ~msub], m.data['gdrift'][grain][mm & ~msub],
+                      alpha=0.85, lw=0.7, color=col, label="_nolabel_")
+      ax.axvline(300,  lw=0.5, ls='--', color='k', alpha=0.5, zorder=0)
+      ax.axvline(3000,  lw=0.5, ls='--', color='k', alpha=0.5, zorder=0)
+      ax.axhline(1.0,  lw=0.5, ls='--', color='k', alpha=0.5, zorder=0)
+      ax.axhline(10.0, lw=0.5, ls='--', color='k', alpha=0.5, zorder=0)
+      ax.set_title(glabel[grain], fontsize="small", pad=-12)
+
+  axes[0, 0].legend(ncol=2, fontsize="xx-small", loc="left")
+  axes[1, 0].set(
+      yscale='log',
+      xscale='log',
+      xlabel=r'Radiation parameter: $\Xi = P_{\mathrm{rad}} / P_{\mathrm{gas}}$',
+      ylabel=r'$V_\mathrm{drift}$, km/s',
+      xlim=[1.0e-2, 4e4],
+  )
+
+  sns.despine()
+  fig.tight_layout()
+  fig.savefig(pltfile)
+
+#+END_SRC
+
+#+RESULTS: drift-pratio-4panel-plot
+[[file:drift-pratio-4panel.pdf]]
 
 ** Drift velocity against dust temperature
 #+name: drift-tdust-plot
