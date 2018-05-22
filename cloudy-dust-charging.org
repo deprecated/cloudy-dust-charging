@@ -618,7 +618,7 @@ Check ion fraction versus F(EUV)/n
 
   pltfile = f'drift-pratio.pdf'
   sns.set_color_codes("bright")
-  fig, ax = plt.subplots()
+  fig, ax = plt.subplots(figsize=(6,4))
 
   F_habing = 1.6e-3
   light_speed = 2.99792458e10
@@ -658,6 +658,8 @@ Check ion fraction versus F(EUV)/n
       xlim=[1.0e-2, 4e4],
   )
 
+  sns.despine()
+  fig.tight_layout()
   fig.savefig(pltfile)
 
 #+END_SRC
@@ -677,7 +679,7 @@ Check ion fraction versus F(EUV)/n
 
   pltfile = f'phi-pratio.pdf'
   sns.set_color_codes("bright")
-  fig, ax = plt.subplots()
+  fig, ax = plt.subplots(figsize=(4, 3))
 
   F_habing = 1.6e-3
   light_speed = 2.99792458e10
@@ -721,11 +723,12 @@ Check ion fraction versus F(EUV)/n
   ax.set(
       yscale='linear',
       xscale='log',
-      xlabel='Prad / Pgas',
+      xlabel=r'$\Xi = P_\mathrm{rad} / P_\mathrm{gas}$',
       ylabel=r'$\phi$',
       xlim=[pgrid[0], pgrid[-1]],
   )
-
+  sns.despine()
+  fig.tight_layout()
   fig.savefig(pltfile)
 
 #+END_SRC
