@@ -54,6 +54,14 @@ CLOSED: [2018-03-16 Fri 10:55]
 + Not the same!
 + Problem is the ~luminosity~ command by default is in ionizing photons only
   + Need to add ~total~ keyword
++ Return to ionizing luminosities [2018-08-28 Tue]
+  + There are small discrepancies still in the ionizing luminosity
+  + Meyer (2016) Table 1 have very round numbers
+  + The ones in my table are similar to these, but with more sig figs
+    + Where did they come from?
+    + Possibly the Brott paper tables?
+  + The Cloudy models are different again
+    + For instance, for 10 Msun model we have S_49 = 0.00028, which is twice what I have in my table
 
 * Expand template for input files
 #+BEGIN_SRC python
@@ -135,6 +143,124 @@ CLOSED: [2018-03-16 Fri 10:55]
 #+RESULTS:
 : None
 
+
+* New Cloudy runs for particular objects
++ [2018-11-04 Sun] Try and reproduce the SEDs of the potential bow wave candidates
++ See 
+
+
+** LP Ori
++ Originally I had:
+  + B1.5V
+  + T = 23000 K
+  + L = 5600 Lsun
++ But Alecian:2013a do a detailed spectral fit and find
+  + T = 20,000 +/- 1000 K
+  + V = 8.46
+  + (B - V) = 0.09
+    + Intrinsic (B - V)_0 = 0.25?
+  + A_V = 1.55
+    + They got that from assuming R_V = 5
+      + But M42 foreground dust is generally held to have R_V = 5.5
+      + Which would give A_V = 1.705 +/- 0.155
+    + => V_0 = 6.91
+      + Or V_0 = 6.755 +/- 0.155 with R_V = 5.5 +/- 0.5
+  + Assume D = 375 +/- 30 pc
+    + But 410 +/- 10 pc would be better
+    + That would make 20% difference to luminosity
+    + Distance modulus 5 log D - 5 = 8.064 +/- 0.053
+  + From Malagnini:1986a Fig 5 and Table 4
+    + @ 20,000 +/- 1000 K, BC = -1.96 +/- 0.1
+    + => m_bol = 6.755 +/- 0.155 - 1.96 +/- 0.1 = 4.795 +/- 0.18 
+    + => M_bol = 4.795 +/- 0.18  - 8.064 +/- 0.053 = -3.269 +/- 0.188
+  + Sun's bolometric magnitude is 4.74
+    + L/Lsun = 10**(0.4 (4.74 + 3.269 +/- 0.188)) = 1600 +/- 300
+  + This is pretty much identical to what Alecian:2013a have in their Table 2
+    + log L/Lsun = 3.22 +/- 0.07 => L/Lsun = 1660 +/- 270
+
+
+*** LP Ori cloudy models
++ We think the shell is neutral, so we need to go deeper than previously
++ We can try the ~constant pressure set LOGVALUE~ option to Cloudy
+  + ~LOGVALUE~ is log_10 P/k at illuminated face in units of cm^-3 K
+  + Density still needs to be set, but it is only used in initial thermal solution, then discarded
+  + This includes radiative acceleration in the pressure balance, so it should automatically produce a radiation-pressurized shell
+  + But we 
+#+BEGIN_SRC python
+  from textwrap import dedent
+  import numpy as np
+
+  LSUN = 3.82e33
+
+  def star_input(id_, L4, T3, log_g):
+      s = f"# {id_} star" + "\n"
+      s += f"# T_eff = {1e3*T3:.0f} K, L = {1e4*L4:.2e} L_sun, log(g) = {log_g:.2f}" + "\n"
+      s += f"table star tlusty OBstar 3-dim {1e3*T3:.0f} {log_g} 0.0" + "\n"
+      s += f"luminosity total {np.log10(LSUN*1e4*L4):.2f}" + "\n"
+      return s
+
+  def hden_input(hden):
+      return f"hden {hden:.2f} # density of {10**hden} pcc" + "\n"
+
+  def file_stem(hden, id_):
+      return f"dustrad-n{int(hden):02d}-{id_}" 
+
+  def intro_input(hden, id_):
+      s = f"title Dust radiative acceleration: star {id_}, density {10**hden} pcc" + "\n"
+      s += f"set save prefix \"{file_stem(hden, id_)}\"" + "\n"
+      return s
+
+  stars = [
+      # id_   L4     T3    log_g
+      ["LP Ori", 0.16, 20.0, 4.0],
+  ]
+
+  def radius_input(L4, hden):
+      # Scale R_in to give same F_bol / N as the MS10 model with hden=1
+      R_in = 1e16 * np.sqrt((L4/0.63) * 10**(1.0 - hden))
+      s = f"# Start close in: {R_in/3.085677582e18:.5f} pc" + "\n"
+      s += f"radius {np.log10(R_in)}" + "\n"
+      return s
+
+
+  outro_input = dedent("""\
+  # Go into PDR a bit
+  stop temperature 4000 K linear
+  iterate
+  sphere
+  grains ism function sublimation
+  abundances HII region no grains
+  cosmic ray background
+  cmb
+  table ism 
+  # save all the output we want
+  save overview last ".ovr"
+  save physical conditions last ".phys"
+  save continuum last ".cont"
+  # save continuum last every ".zcont"
+  save radius last ".rad"
+  save grain abundance last ".gabun"
+  save grain charge last ".gcharge"
+  save grain continuum last ".gcont"
+  save grain drift velocity last ".gdrift"
+  save grain potential last ".gpot"
+  save grain temperature last ".gtemp"
+  """)
+
+  for hden in 0.0, 1.0, 2.0, 3.0, 4.0:
+      for id_, L4, T3, log_g in stars:
+          cloudy_input = (intro_input(hden, id_)
+                          + star_input(id_, L4, T3, log_g)
+                          + hden_input(hden)
+                          + radius_input(L4, hden)
+                          + outro_input)
+          file_name = f"models/{file_stem(hden, id_)}.in"
+          with open(file_name, "w") as f:
+              f.write(cloudy_input)
+
+#+END_SRC
+
+** \theta^1 D
 
 * Look at dust 
 
@@ -1365,6 +1491,98 @@ Check ion fraction versus F(EUV)/n
 
 #+RESULTS:
 [[file:spectra-dustrad-n04-MS20.pdf]]
+
+
+** Look at the infrared SED from the models
++ This might not be so useful with the current models since they go too deep for comparison with the bow shocks
++ But it will be a start at least
+
+#+name: make-infrared-sed
+#+header: :var PREFIX="dustrad-n00-MS40"
+#+BEGIN_SRC python :return pltfile :results file
+  import numpy as np
+  from matplotlib import pyplot as plt
+  import seaborn as sns
+  from astropy.table import Table
+  from astropy import units as u
+  from astropy.constants import k_B
+  from cloudytab import CloudyModel
+
+  pltfile = f'wav-spectra-{PREFIX}.pdf'
+  m = CloudyModel(f'models/{PREFIX}')
+
+  fig, ax = plt.subplots()
+
+  LSUN = 3.82e33
+  nu = m.data['cont']['Cont  nu']
+  wav = 0.0912/nu
+  nuFnu_inc = m.data['cont']['incident']/LSUN 
+  nuFnu_trans = m.data['cont']['trans']/LSUN
+  nuFnu_diffuse = m.data['cont']['DiffOut']/LSUN
+  vmax = nuFnu_inc.max()
+  ax.plot(wav, nuFnu_inc, lw=0.2, label='incident')
+  ax.plot(wav, nuFnu_diffuse, lw=0.6, label='reflected')
+  ax.plot(wav, nuFnu_trans, lw=1.0, label='transmitted')
+
+  L_bol = np.trapz(nuFnu_inc/nu, nu)
+  mfuv = (nu >= 912.0/2000.0) & (nu <= 1.0)
+  meuv = (nu > 1.0) & (nu <= 4.0)
+  L_fuv = np.trapz(nuFnu_inc[mfuv]/nu[mfuv], nu[mfuv])
+  L_euv = np.trapz(nuFnu_inc[meuv]/nu[meuv], nu[meuv])
+
+  ax.legend()
+  ax.set(
+      xlim=[0.01, 1000.],
+      ylim=[1e-4*vmax, 2.*vmax],
+      yscale='log',
+      xscale='log',
+      xlabel='Wavelength, micron',
+      ylabel=r'$\nu L_{\nu}$, $\mathrm{L}_{\odot}$',
+  )
+
+  fig.savefig(pltfile)
+
+#+END_SRC
+
+#+RESULTS: make-infrared-sed
+[[file:wav-spectra-dustrad-n00-MS40.pdf]]
+
+#+call: make-infrared-sed(PREFIX="dustrad-n04-MS40")
+
+#+RESULTS:
+[[file:wav-spectra-dustrad-n04-MS40.pdf]]
+
+
+#+call: make-infrared-sed(PREFIX="dustrad-n04-MS20")
+
+#+RESULTS:
+[[file:wav-spectra-dustrad-n04-MS20.pdf]]
+
+#+call: make-infrared-sed(PREFIX="dustrad-n03-MS20")
+
+#+RESULTS:
+[[file:wav-spectra-dustrad-n03-MS20.pdf]]
+
+#+call: make-infrared-sed(PREFIX="dustrad-n02-MS20")
+
+#+RESULTS:
+[[file:wav-spectra-dustrad-n02-MS20.pdf]]
+
+#+call: make-infrared-sed(PREFIX="dustrad-n04-MS10")
+
+#+RESULTS:
+[[file:wav-spectra-dustrad-n04-MS10.pdf]]
+
+#+call: make-infrared-sed(PREFIX="dustrad-n03-MS10")
+
+#+RESULTS:
+[[file:wav-spectra-dustrad-n03-MS10.pdf]]
+
+#+call: make-infrared-sed(PREFIX="dustrad-n02-MS10")
+
+#+RESULTS:
+[[file:wav-spectra-dustrad-n02-MS10.pdf]]
+
 
 ** Save continuum every zone
 + I am testing saving this every zone so I can find FUV and EUV flux vs radius
