@@ -185,7 +185,13 @@ CLOSED: [2018-03-16 Fri 10:55]
   + ~LOGVALUE~ is log_10 P/k at illuminated face in units of cm^-3 K
   + Density still needs to be set, but it is only used in initial thermal solution, then discarded
   + This includes radiative acceleration in the pressure balance, so it should automatically produce a radiation-pressurized shell
-  + But we 
++ The question is, whether to try and include the internal ionized zone that is seen in H\alpha
+  + To start with, we won't
++ We know that column is optical depth of 0.2 to 0.3 in FUV and optical
+  + N = 0.3 / m \kappa = 1.38e21 / \kappa_100
++ Maybe easiest option is to set density as 20 times lower than our estimate for the neutral density
+  + So this would be 1e4
++ We use Orion grains
 #+BEGIN_SRC python
   from textwrap import dedent
   import numpy as np
@@ -200,35 +206,35 @@ CLOSED: [2018-03-16 Fri 10:55]
       return s
 
   def hden_input(hden):
-      return f"hden {hden:.2f} # density of {10**hden} pcc" + "\n"
+      s = f"hden {hden:.2f} # density of {10**hden} pcc" + "\n"
+      s += "constant pressure" + "\n"
+      s += "stop AV 0.3" + "\n"
+      s += "stop temperature 100 K linear" + "\n"
+      return s
 
-  def file_stem(hden, id_):
-      return f"dustrad-n{int(hden):02d}-{id_}" 
+  def file_stem(hden, R_pc, id_):
+      return f"shell-R{int(1000*R_pc):03d}-n{int(10*hden):02d}-{id_}" 
 
-  def intro_input(hden, id_):
-      s = f"title Dust radiative acceleration: star {id_}, density {10**hden} pcc" + "\n"
-      s += f"set save prefix \"{file_stem(hden, id_)}\"" + "\n"
+  def intro_input(hden, R_pc, id_):
+      s = f"title Dusty shell: star {id_}, R_in = {R_pc} pc, density {10**hden} pcc" + "\n"
+      s += f"set save prefix \"{file_stem(hden, R_pc, id_)}\"" + "\n"
       return s
 
   stars = [
       # id_   L4     T3    log_g
-      ["LP Ori", 0.16, 20.0, 4.0],
+      ["LP_Ori", 0.16, 20.0, 4.0],
   ]
 
-  def radius_input(L4, hden):
-      # Scale R_in to give same F_bol / N as the MS10 model with hden=1
-      R_in = 1e16 * np.sqrt((L4/0.63) * 10**(1.0 - hden))
-      s = f"# Start close in: {R_in/3.085677582e18:.5f} pc" + "\n"
+  def radius_input(R_pc):
+      R_in = 3.085677582e18*R_pc
+      s = f"# Start at LP Ori inner radius: {R_pc:.5f} pc" + "\n"
       s += f"radius {np.log10(R_in)}" + "\n"
       return s
 
 
   outro_input = dedent("""\
-  # Go into PDR a bit
-  stop temperature 4000 K linear
   iterate
-  sphere
-  grains ism function sublimation
+  grains orion function sublimation
   abundances HII region no grains
   cosmic ray background
   cmb
@@ -247,18 +253,27 @@ CLOSED: [2018-03-16 Fri 10:55]
   save grain temperature last ".gtemp"
   """)
 
-  for hden in 0.0, 1.0, 2.0, 3.0, 4.0:
+  for R_pc, hden in [
+          [0.01, 3.5], [0.01, 4.0], [0.01, 4.5],
+          [0.005, 3.0], [0.003, 2.5]
+  ]:
       for id_, L4, T3, log_g in stars:
-          cloudy_input = (intro_input(hden, id_)
+          cloudy_input = (intro_input(hden, R_pc, id_)
                           + star_input(id_, L4, T3, log_g)
                           + hden_input(hden)
-                          + radius_input(L4, hden)
+                          + radius_input(R_pc)
                           + outro_input)
-          file_name = f"models/{file_stem(hden, id_)}.in"
+          file_name = f"models/{file_stem(hden, R_pc, id_)}.in"
           with open(file_name, "w") as f:
               f.write(cloudy_input)
 
 #+END_SRC
+
+#+RESULTS:
+: None
+
++ So we have some models that start at 0.01 pc, and some that start at smaller radii
+  + But we want them all to get to the right density in the shell
 
 ** \theta^1 D
 
@@ -1438,8 +1453,8 @@ Check ion fraction versus F(EUV)/n
   ax.axvspan(912.0/2000.0, 1.0, color='0.9')
   ax.axvspan(1.0, 4.0, color='0.95')
 
-  ax.text(0.6, 2e-4*vmax, f"FUV\n{100*L_fuv/L_bol:.1f}%")
-  ax.text(1.5, 2e-4*vmax, f"EUV\n{100*L_euv/L_bol:.1f}%")
+  ax.text(0.6, 2e-4*vmax, f"FUV\n{100*L_fuv/L_bol:.2f}%")
+  ax.text(1.5, 2e-4*vmax, f"EUV\n{100*L_euv/L_bol:.2f}%")
   ax.set(
       xlim=[0.05, 4.0],
       ylim=[1e-6*vmax, 2.*vmax],
@@ -1491,6 +1506,12 @@ Check ion fraction versus F(EUV)/n
 
 #+RESULTS:
 [[file:spectra-dustrad-n04-MS20.pdf]]
+
+
+#+call: make-sed(PREFIX="shell-R005-n30-LP_Ori")
+
+#+RESULTS:
+[[file:spectra-shell-R005-n30-LP_Ori.pdf]]
 
 
 ** Look at the infrared SED from the models
@@ -1582,6 +1603,26 @@ Check ion fraction versus F(EUV)/n
 
 #+RESULTS:
 [[file:wav-spectra-dustrad-n02-MS10.pdf]]
+
+#+call: make-infrared-sed(PREFIX="shell-R005-n30-LP_Ori")
+
+#+RESULTS:
+[[file:wav-spectra-shell-R005-n30-LP_Ori.pdf]]
+
+#+call: make-infrared-sed(PREFIX="shell-R003-n25-LP_Ori")
+
+#+RESULTS:
+[[file:wav-spectra-shell-R003-n25-LP_Ori.pdf]]
+
+#+call: make-infrared-sed(PREFIX="shell-R010-n40-LP_Ori")
+
+#+RESULTS:
+[[file:wav-spectra-shell-R010-n40-LP_Ori.pdf]]
+
+#+call: make-infrared-sed(PREFIX="shell-R010-n45-LP_Ori")
+
+#+RESULTS:
+[[file:wav-spectra-shell-R010-n45-LP_Ori.pdf]]
 
 
 ** Save continuum every zone
