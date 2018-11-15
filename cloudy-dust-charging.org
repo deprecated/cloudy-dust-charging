@@ -488,6 +488,341 @@ Finally, try different shell thickness
 : None
 
 
++ And lower dust opacity too
+  + We need to put down the stopping temperature, since it gets to 100 K very soon in the PDR
+  + Also ditch the hotter star
+  + And compensate for less of a radiation-pressure hole in the low-radius model
+
+#+BEGIN_SRC python
+  from textwrap import dedent
+  import numpy as np
+
+  LSUN = 3.82e33
+
+  def star_input(id_, L4, T3, log_g):
+      s = f"# {id_} star" + "\n"
+      s += f"# T_eff = {1e3*T3:.0f} K, L = {1e4*L4:.2e} L_sun, log(g) = {log_g:.2f}" + "\n"
+      s += f"table star tlusty OBstar 3-dim {1e3*T3:.0f} {log_g} 0.0" + "\n"
+      s += f"luminosity total {np.log10(LSUN*1e4*L4):.2f}" + "\n"
+      return s
+
+  def hden_input(hden):
+      s = f"hden {hden:.2f} # density of {10**hden} pcc" + "\n"
+      s += "constant pressure" + "\n"
+      s += "stop AV 0.3" + "\n"
+      s += "stop temperature 10 K linear" + "\n"
+      return s
+
+  def file_stem(hden, R_pc, id_):
+      return f"shell-R{int(1000*R_pc):03d}-n{int(10*hden):02d}-{id_}" 
+
+  def intro_input(hden, R_pc, id_):
+      s = f"title Dusty shell: star {id_}, R_in = {R_pc} pc, density {10**hden} pcc" + "\n"
+      s += f"set save prefix \"{file_stem(hden, R_pc, id_)}\"" + "\n"
+      return s
+
+  stars = [
+      # id_   L4     T3    log_g
+      ["LP_Ori20lowZ", 0.16, 20.0, 4.0],
+  ]
+
+  def radius_input(R_pc):
+      R_in = 3.085677582e18*R_pc
+      s = f"# Start at LP Ori inner radius: {R_pc:.5f} pc" + "\n"
+      s += f"radius {np.log10(R_in)}" + "\n"
+      return s
+
+
+  outro_input = dedent("""\
+  iterate
+  grains orion function sublimation 0.1
+  grains PAH 0.1
+  abundances HII region no grains
+  cosmic ray background
+  cmb
+  table ism 
+  # save all the output we want
+  save overview last ".ovr"
+  save pressure last ".pre"
+  save physical conditions last ".phys"
+  save continuum last ".cont"
+  # save continuum last every ".zcont"
+  save radius last ".rad"
+  save grain abundance last ".gabun"
+  save grain charge last ".gcharge"
+  save grain continuum last ".gcont"
+  save grain drift velocity last ".gdrift"
+  save grain potential last ".gpot"
+  save grain temperature last ".gtemp"
+  save lines, emissivity last ".emis"
+  H  1 6562.81A
+  Ca B 6562.81A
+  N  2 6583.45A
+  O  3 5006.84A
+  IRAC 3.60000m
+  IRAC 4.50000m
+  IRAC 5.80000m
+  IRAC 8.00000m
+  F12  12.0000m
+  F25  25.0000m
+  PAC1 70.0000m
+  PAC3 160.000m
+  end of lines
+  """)
+
+  for R_pc, hden in [
+          [0.005, 3.0], [0.003, 2.9], [0.001, 2.8],
+  ]:
+      for id_, L4, T3, log_g in stars:
+          cloudy_input = (intro_input(hden, R_pc, id_)
+                          + star_input(id_, L4, T3, log_g)
+                          + hden_input(hden)
+                          + radius_input(R_pc)
+                          + outro_input)
+          file_name = f"models/{file_stem(hden, R_pc, id_)}.in"
+          with open(file_name, "w") as f:
+              f.write(cloudy_input)
+
+#+END_SRC
+
+#+RESULTS:
+: None
+
++ And add a magnetic field with \gamma = 4/3 
+
+#+BEGIN_SRC python
+  from textwrap import dedent
+  import numpy as np
+
+  LSUN = 3.82e33
+
+  def star_input(id_, L4, T3, log_g):
+      s = f"# {id_} star" + "\n"
+      s += f"# T_eff = {1e3*T3:.0f} K, L = {1e4*L4:.2e} L_sun, log(g) = {log_g:.2f}" + "\n"
+      s += f"table star tlusty OBstar 3-dim {1e3*T3:.0f} {log_g} 0.0" + "\n"
+      s += f"luminosity total {np.log10(LSUN*1e4*L4):.2f}" + "\n"
+      return s
+
+  def hden_input(hden):
+      s = f"hden {hden:.2f} # density of {10**hden} pcc" + "\n"
+      s += "constant pressure" + "\n"
+      s += "stop AV 0.3" + "\n"
+      s += "stop temperature 10 K linear" + "\n"
+      return s
+
+  def file_stem(hden, R_pc, id_):
+      return f"shell-R{int(1000*R_pc):03d}-n{int(10*hden):02d}-{id_}" 
+
+  def intro_input(hden, R_pc, id_):
+      s = f"title Dusty shell: star {id_}, R_in = {R_pc} pc, density {10**hden} pcc" + "\n"
+      s += f"set save prefix \"{file_stem(hden, R_pc, id_)}\"" + "\n"
+      return s
+
+  stars = [
+      # id_   L4     T3    log_g
+      ["LP_Ori20B", 0.16, 20.0, 4.0],
+  ]
+
+  def radius_input(R_pc):
+      R_in = 3.085677582e18*R_pc
+      s = f"# Start at LP Ori inner radius: {R_pc:.5f} pc" + "\n"
+      s += f"radius {np.log10(R_in)}" + "\n"
+      return s
+
+  def magnetic_input(hden, hden1=3.0, vA=2.0, gamma_m=4.0/3.0):
+      """
+      Set B field at illuminated face (where n = 10**`hden`) so that
+      Alfven speed is `vA` km/s for typical densities 10**`hden1`,
+      assuming Pmag ~ rho**`gamma_m`
+      """
+      m = 1.3*1.67262158e-24
+      # This should give 33 micro G for vA=2 and hden1=3
+      B1 = np.sqrt(4*np.pi*m*10**hden1)*vA*1.0e5
+      B0 = B1*10**(0.5*gamma_m*(hden - hden1))
+      s = dedent(f"""\
+           # Magnetic field of {1e6*B0:.3f} microG to give Alfven speed
+           # of {vA:.3f} km/s for density of {10**hden1} pcc
+           """)
+      s += f"magnetic field, log(B) = {np.log10(B0):.3f}, tangled {gamma_m:.5f}" + "\n"
+      s += "turbulence equipartition" + "\n"
+      return s
+    
+
+  outro_input = dedent("""\
+  iterate
+  grains orion function sublimation
+  grains PAH
+  abundances HII region no grains
+  cosmic ray background
+  cmb
+  table ism 
+  # save all the output we want
+  save overview last ".ovr"
+  save pressure last ".pre"
+  save physical conditions last ".phys"
+  save continuum last ".cont"
+  # save continuum last every ".zcont"
+  save radius last ".rad"
+  save grain abundance last ".gabun"
+  save grain charge last ".gcharge"
+  save grain continuum last ".gcont"
+  save grain drift velocity last ".gdrift"
+  save grain potential last ".gpot"
+  save grain temperature last ".gtemp"
+  save lines, emissivity last ".emis"
+  H  1 6562.81A
+  Ca B 6562.81A
+  N  2 6583.45A
+  O  3 5006.84A
+  IRAC 3.60000m
+  IRAC 4.50000m
+  IRAC 5.80000m
+  IRAC 8.00000m
+  F12  12.0000m
+  F25  25.0000m
+  PAC1 70.0000m
+  PAC3 160.000m
+  end of lines
+  """)
+
+  for R_pc, hden in [
+          [0.005, 3.0], [0.003, 2.9], [0.001, 2.8],
+  ]:
+      for id_, L4, T3, log_g in stars:
+          cloudy_input = (intro_input(hden, R_pc, id_)
+                          + star_input(id_, L4, T3, log_g)
+                          + hden_input(hden)
+                          + magnetic_input(hden)
+                          + radius_input(R_pc)
+                          + outro_input)
+          file_name = f"models/{file_stem(hden, R_pc, id_)}.in"
+          with open(file_name, "w") as f:
+              f.write(cloudy_input)
+
+#+END_SRC
+
+#+RESULTS:
+: None
+
++ That makes a shell that is too thick, so try again with magnetic \gamma = 1, which corresponds to constant Alfvén speed
+  + For some reason \gamma = 1 is not allowed by Cloudy, so use \gamma = 1.001
+  + Also remove the turbulence and fix the density of the low radius model
+
+#+BEGIN_SRC python
+  from textwrap import dedent
+  import numpy as np
+
+  LSUN = 3.82e33
+
+  def star_input(id_, L4, T3, log_g):
+      s = f"# {id_} star" + "\n"
+      s += f"# T_eff = {1e3*T3:.0f} K, L = {1e4*L4:.2e} L_sun, log(g) = {log_g:.2f}" + "\n"
+      s += f"table star tlusty OBstar 3-dim {1e3*T3:.0f} {log_g} 0.0" + "\n"
+      s += f"luminosity total {np.log10(LSUN*1e4*L4):.2f}" + "\n"
+      return s
+
+  def hden_input(hden):
+      s = f"hden {hden:.2f} # density of {10**hden} pcc" + "\n"
+      s += "constant pressure" + "\n"
+      s += "stop AV 0.3" + "\n"
+      s += "stop temperature 10 K linear" + "\n"
+      return s
+
+  def file_stem(hden, R_pc, id_):
+      return f"shell-R{int(1000*R_pc):03d}-n{int(10*hden):02d}-{id_}" 
+
+  def intro_input(hden, R_pc, id_):
+      s = f"title Dusty shell: star {id_}, R_in = {R_pc} pc, density {10**hden} pcc" + "\n"
+      s += f"set save prefix \"{file_stem(hden, R_pc, id_)}\"" + "\n"
+      return s
+
+  stars = [
+      # id_   L4     T3    log_g
+      ["LP_Ori20BB", 0.16, 20.0, 4.0],
+  ]
+
+  def radius_input(R_pc):
+      R_in = 3.085677582e18*R_pc
+      s = f"# Start at LP Ori inner radius: {R_pc:.5f} pc" + "\n"
+      s += f"radius {np.log10(R_in)}" + "\n"
+      return s
+
+  def magnetic_input(hden, hden1=3.0, vA=2.0, gamma_m=4.0/3.0):
+      """
+      Set B field at illuminated face (where n = 10**`hden`) so that
+      Alfven speed is `vA` km/s for typical densities 10**`hden1`,
+      assuming Pmag ~ rho**`gamma_m`
+      """
+      m = 1.3*1.67262158e-24
+      # This should give 33 micro G for vA=2 and hden1=3
+      B1 = np.sqrt(4*np.pi*m*10**hden1)*vA*1.0e5
+      B0 = B1*10**(0.5*gamma_m*(hden - hden1))
+      s = dedent(f"""\
+           # Magnetic field of {1e6*B0:.3f} microG to give Alfven speed
+           # of {vA:.3f} km/s for density of {10**hden1} pcc
+           """)
+      s += f"magnetic field, log(B) = {np.log10(B0):.3f}, tangled {gamma_m:.5f}" + "\n"
+      return s
+
+
+  outro_input = dedent("""\
+  iterate
+  grains orion function sublimation
+  grains PAH
+  abundances HII region no grains
+  cosmic ray background
+  cmb
+  table ism 
+  # save all the output we want
+  save overview last ".ovr"
+  save pressure last ".pre"
+  save physical conditions last ".phys"
+  save continuum last ".cont"
+  # save continuum last every ".zcont"
+  save radius last ".rad"
+  save grain abundance last ".gabun"
+  save grain charge last ".gcharge"
+  save grain continuum last ".gcont"
+  save grain drift velocity last ".gdrift"
+  save grain potential last ".gpot"
+  save grain temperature last ".gtemp"
+  save lines, emissivity last ".emis"
+  H  1 6562.81A
+  Ca B 6562.81A
+  N  2 6583.45A
+  O  3 5006.84A
+  IRAC 3.60000m
+  IRAC 4.50000m
+  IRAC 5.80000m
+  IRAC 8.00000m
+  F12  12.0000m
+  F25  25.0000m
+  PAC1 70.0000m
+  PAC3 160.000m
+  end of lines
+  """)
+
+  for R_pc, hden in [
+          [0.005, 3.0], [0.003, 2.9],
+          [0.001, 2.3],
+  ]:
+      for id_, L4, T3, log_g in stars:
+          cloudy_input = (intro_input(hden, R_pc, id_)
+                          + star_input(id_, L4, T3, log_g)
+                          + hden_input(hden)
+                          + magnetic_input(hden, vA=2.0, gamma_m=1.001)
+                          + radius_input(R_pc)
+                          + outro_input)
+          file_name = f"models/{file_stem(hden, R_pc, id_)}.in"
+          with open(file_name, "w") as f:
+              f.write(cloudy_input)
+
+#+END_SRC
+
+#+RESULTS:
+: None
+
+
 ** \theta^1 D
 
 * Look at dust 
@@ -1866,6 +2201,16 @@ Check ion fraction versus F(EUV)/n
 
 #+RESULTS:
 [[file:wav-spectra-shell-R001-n25-LP_Ori22thick.pdf]]
+
+#+call: make-infrared-sed(PREFIX="shell-R001-n28-LP_Ori20lowZ")
+
+#+RESULTS:
+[[file:wav-spectra-shell-R001-n28-LP_Ori20lowZ.pdf]]
+
+#+call: make-infrared-sed(PREFIX="shell-R001-n23-LP_Ori20BB")
+
+#+RESULTS:
+[[file:wav-spectra-shell-R001-n23-LP_Ori20BB.pdf]]
 
 ** Save continuum every zone
 + I am testing saving this every zone so I can find FUV and EUV flux vs radius

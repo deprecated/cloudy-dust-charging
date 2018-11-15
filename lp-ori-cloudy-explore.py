@@ -121,6 +121,134 @@ ax.set(xlim=[0, None], ylim=[0, None], yscale='linear', xlabel="Radius, pc", yla
 None
 # -
 
+# And the same for the low dust opacity models
+
+# +
+models = ["R003-n29-LP_Ori20", "R005-n30-LP_Ori20", "R001-n28-LP_Ori20"]
+
+
+fig, ax = plt.subplots(figsize=(10, 6))
+
+for label in models:
+    m = cloudytab.CloudyModel(f"models/shell-{label}lowZ")
+    r_pc = m.data["rad"]["radius"]*u.cm.to(u.pc)
+    ax.plot(r_pc, m.data["pre"]["Pgas"], label=label+"lowZ")
+    
+ax.legend(loc="lower right", fontsize="small")
+ax.set(xlim=[0, None], ylim=[0, None], yscale='linear', xlabel="Radius, pc", ylabel="Gas pressure")
+None
+# -
+
+# That is better now, but it looks like the shells are too thick.  Now look at the densities.
+
+# +
+fig, ax = plt.subplots(figsize=(10, 6))
+
+for label in models:
+    m = cloudytab.CloudyModel(f"models/shell-{label}lowZ")
+    r_pc = m.data["rad"]["radius"]*u.cm.to(u.pc)
+    ax.plot(r_pc, m.data["ovr"]["hden"], label=label+"lowZ")
+    ax.plot(r_pc, m.data["ovr"]["eden"], ls="--", label="_nolabel_")
+    ax.plot(r_pc, m.data["ovr"]["Te"], ls=":", label="_nolabel_")
+
+
+    
+ax.legend(loc="upper left", fontsize="small")
+ax.set(xlim=[0, None], ylim=[None, None], yscale='log', xlabel="Radius, pc", ylabel="Density")
+None
+
+# +
+fig, ax = plt.subplots(figsize=(10, 6))
+
+for label in models:
+    m = cloudytab.CloudyModel(f"models/shell-{label}lowZ")
+    r_pc = m.data["rad"]["radius"]*u.cm.to(u.pc)
+    AV = m.data["ovr"]["AV(point)"]
+    ax.plot(AV, m.data["ovr"]["hden"], label=label+"lowZ")
+    ax.plot(AV, m.data["ovr"]["eden"], ls="--", label="_nolabel_")
+    ax.plot(AV, m.data["ovr"]["Te"], ls=":", label="_nolabel_")
+
+
+    
+ax.legend(loc="right", fontsize="small")
+ax.set(xlim=[0, None], ylim=[None, None], yscale='log', xlabel="Visual extinction, $A_V$", ylabel="Density")
+None
+# -
+
+# So the problem was that we never got to the requested $A_V$.  The models hit the $T=100$ K first, and stopped because of that. I have changed the floor to 10 K, so they now do reach $A_V = 0.3$, but now they are too thick. 
+
+# And the magnetic field models
+
+# +
+models = ["R003-n29-LP_Ori20", "R005-n30-LP_Ori20", "R001-n28-LP_Ori20"]
+
+
+fig, ax = plt.subplots(figsize=(10, 6))
+
+for label, color in zip(models, ["c", "orange", "g"]):
+    m = cloudytab.CloudyModel(f"models/shell-{label}B")
+    r_pc = m.data["rad"]["radius"]*u.cm.to(u.pc)
+    ax.plot(r_pc, m.data["pre"]["Pgas"], color=color, label=label+"B")
+    ax.plot(r_pc, m.data["pre"]["P(mag)"] + m.data["pre"]["P(turb)"], ls="--", color=color, label="_nolabel_")
+    
+ax.legend(loc="upper right", fontsize="small")
+ax.set(xlim=[0, None], ylim=[0, None], yscale='linear', xlabel="Radius, pc", ylabel="Gas pressure")
+None
+
+# +
+fig, ax = plt.subplots(figsize=(10, 6))
+
+for label, color in zip(models, ["c", "orange", "g"]):
+    m = cloudytab.CloudyModel(f"models/shell-{label}B")
+    r_pc = m.data["rad"]["radius"]*u.cm.to(u.pc)
+    ax.plot(r_pc, m.data["ovr"]["hden"], color=color, label=label+"B")
+    ax.plot(r_pc, m.data["ovr"]["eden"], color=color, ls="--", label="_nolabel_")
+    ax.plot(r_pc, m.data["ovr"]["Te"], color=color, ls=":", label="_nolabel_")
+
+
+    
+ax.legend(loc="right", fontsize="small")
+ax.set(xlim=[0, None], ylim=[None, None], yscale='log', xlabel="Radius, pc", ylabel="Density")
+None
+# -
+
+# Repeat for the models with constant Alfven speed
+
+# +
+models = ["R003-n29-LP_Ori20", "R005-n30-LP_Ori20", "R001-n23-LP_Ori20"]
+
+
+fig, ax = plt.subplots(figsize=(10, 6))
+
+for label, color in zip(models, ["c", "orange", "g"]):
+    m = cloudytab.CloudyModel(f"models/shell-{label}BB")
+    r_pc = m.data["rad"]["radius"]*u.cm.to(u.pc)
+    ax.plot(r_pc, m.data["pre"]["Pgas"], color=color, label=label+"B")
+    ax.plot(r_pc, m.data["pre"]["P(mag)"] + m.data["pre"]["P(turb)"], ls="--", color=color, label="_nolabel_")
+    
+ax.legend(loc="upper left", fontsize="small")
+ax.set(xlim=[0, None], ylim=[0, None], yscale='linear', xlabel="Radius, pc", ylabel="Gas pressure")
+None
+
+# +
+fig, ax = plt.subplots(figsize=(10, 6))
+
+for label, color in zip(models, ["c", "orange", "g"]):
+    m = cloudytab.CloudyModel(f"models/shell-{label}BB")
+    r_pc = m.data["rad"]["radius"]*u.cm.to(u.pc)
+    ax.plot(r_pc, m.data["ovr"]["hden"], color=color, label=label+"BB")
+    ax.plot(r_pc, m.data["ovr"]["eden"], color=color, ls="--", label="_nolabel_")
+    ax.plot(r_pc, m.data["ovr"]["Te"], color=color, ls=":", label="_nolabel_")
+
+
+    
+ax.legend(loc="upper left", fontsize="small")
+ax.set(xlim=[0, None], ylim=[None, None], yscale='log', xlabel="Radius, pc", ylabel="Density")
+None
+# -
+
+# ## Emissivity profiles
+
 label = "R003-n29-LP_Ori20"
 m = cloudytab.CloudyModel(f"models/shell-{label}")
 r_pc = m.data["rad"]["radius"]*u.cm.to(u.pc)
@@ -203,6 +331,101 @@ for band in em.colnames[1:]:
 ax.legend(ncol=2, fontsize="xx-small", title=label)
 ax.set(xlim=[0, None], yscale='log', ylim=[1e-20, None], xlabel="Radius, pc", ylabel=r"Emissivity $\times\ R^2$")
 None
+
+# +
+label = "R001-n28-LP_Ori20lowZ"
+m = cloudytab.CloudyModel(f"models/shell-{label}")
+r_pc = m.data["rad"]["radius"]*u.cm.to(u.pc)
+em = m.data["emis"]
+fig, ax = plt.subplots(figsize=(15, 10))
+
+for band in em.colnames[1:]:
+    if band in drop_these_bands:
+        continue
+    e = em[band]
+    ax.plot(r_pc, e*(r_pc/0.01)**2, label=band)
+    
+ax.legend(ncol=2, fontsize="xx-small", title=label)
+ax.set(xlim=[0, None], yscale='log', ylim=[1e-20, None], xlabel="Radius, pc", ylabel=r"Emissivity $\times\ R^2$")
+None
+
+# +
+label = "R003-n29-LP_Ori20B"
+m = cloudytab.CloudyModel(f"models/shell-{label}")
+r_pc = m.data["rad"]["radius"]*u.cm.to(u.pc)
+em = m.data["emis"]
+fig, ax = plt.subplots(figsize=(15, 10))
+
+for band in em.colnames[1:]:
+    if band in drop_these_bands:
+        continue
+    e = em[band]
+    ax.plot(r_pc, e*(r_pc/0.01)**2, label=band)
+    
+ax.legend(ncol=2, fontsize="xx-small", title=label)
+ax.set(xlim=[0, None], yscale='log', ylim=[1e-20, None], xlabel="Radius, pc", ylabel=r"Emissivity $\times\ R^2$")
+None
+
+# +
+label = "R003-n29-LP_Ori20BB"
+m = cloudytab.CloudyModel(f"models/shell-{label}")
+r_pc = m.data["rad"]["radius"]*u.cm.to(u.pc)
+em = m.data["emis"]
+fig, ax = plt.subplots(figsize=(15, 10))
+
+for band in em.colnames[1:]:
+    if band in drop_these_bands:
+        continue
+    e = em[band]
+    ax.plot(r_pc, e*(r_pc/0.01)**2, label=band)
+    
+ax.legend(ncol=2, fontsize="xx-small", title=label)
+ax.set(xlim=[0, None], yscale='log', ylim=[1e-20, None], xlabel="Radius, pc", ylabel=r"Emissivity $\times\ R^2$")
+None
+
+# +
+label = "R001-n23-LP_Ori20BB"
+m = cloudytab.CloudyModel(f"models/shell-{label}")
+r_pc = m.data["rad"]["radius"]*u.cm.to(u.pc)
+em = m.data["emis"]
+fig, ax = plt.subplots(figsize=(15, 10))
+
+for band in em.colnames[1:]:
+    if band in drop_these_bands:
+        continue
+    e = em[band]
+    ax.plot(r_pc, e*(r_pc/0.01)**2, label=band)
+    
+ax.legend(ncol=2, fontsize="xx-small", title=label)
+ax.set(xlim=[0, None], yscale='log', ylim=[1e-20, None], xlabel="Radius, pc", ylabel=r"Emissivity $\times\ R^2$")
+None
 # -
+
+# ## Grain drift
+
+# It looks like the grains become uncoupled at the smallest radii
+
+# +
+label = "R001-n23-LP_Ori20BB"
+m = cloudytab.CloudyModel(f"models/shell-{label}")
+r_pc = m.data["rad"]["radius"]*u.cm.to(u.pc)
+vdrift= m.data["gdrift"]
+fig, ax = plt.subplots(figsize=(15, 10))
+
+for grain in vdrift.colnames[1:]:
+    if grain.startswith("pah"):
+        continue
+    v = vdrift[grain]
+    ax.plot(r_pc, v, label=grain)
+    
+ax.plot(r_pc, m.data["pre"]["cad(wind km/s)"], ls="--", color="k", label="sound speed")
+ax.plot(r_pc, 2.0*np.ones_like(r_pc), ls=":", color="k", label="Alfven speed")
+
+ax.legend(ncol=2, fontsize="xx-small", title=label)
+ax.set(xlim=[0, None], yscale='log', ylim=[None, None], xlabel="Radius, pc", ylabel=r"Drift velocity")
+None
+# -
+
+# So, the drift velocity is safely subsonic and sub-alfvenic in the shell and in the outer part of the ionized gas.
 
 
