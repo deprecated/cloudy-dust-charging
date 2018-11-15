@@ -1,0 +1,46 @@
+title Dusty shell: star LP_Ori20thick, R_in = 0.003 pc, density 794.3282347242813 pcc
+set save prefix "shell-R003-n29-LP_Ori20thick"
+# LP_Ori20thick star
+# T_eff = 20000 K, L = 1.60e+03 L_sun, log(g) = 4.00
+table star tlusty OBstar 3-dim 20000 4.0 0.0
+luminosity total 36.79
+hden 2.90 # density of 794.3282347242813 pcc
+constant pressure
+stop AV 0.5
+stop temperature 100 K linear
+# Start at LP Ori inner radius: 0.00300 pc
+radius 15.96647180001339
+iterate
+grains orion function sublimation
+grains PAH
+abundances HII region no grains
+cosmic ray background
+cmb
+table ism 
+# save all the output we want
+save overview last ".ovr"
+save pressure last ".pre"
+save physical conditions last ".phys"
+save continuum last ".cont"
+# save continuum last every ".zcont"
+save radius last ".rad"
+save grain abundance last ".gabun"
+save grain charge last ".gcharge"
+save grain continuum last ".gcont"
+save grain drift velocity last ".gdrift"
+save grain potential last ".gpot"
+save grain temperature last ".gtemp"
+save lines, emissivity last ".emis"
+H  1 6562.81A
+Ca B 6562.81A
+N  2 6583.45A
+O  3 5006.84A
+IRAC 3.60000m
+IRAC 4.50000m
+IRAC 5.80000m
+IRAC 8.00000m
+F12  12.0000m
+F25  25.0000m
+PAC1 70.0000m
+PAC3 160.000m
+end of lines

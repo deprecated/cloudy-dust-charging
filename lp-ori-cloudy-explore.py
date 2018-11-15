@@ -20,11 +20,11 @@
 import numpy as np
 import cloudytab
 
-m = cloudytab.CloudyModel("models/shell-R005-n30-LP_Ori")
-m2 = cloudytab.CloudyModel("models/shell-R003-n25-LP_Ori")
-m3 = cloudytab.CloudyModel("models/shell-R010-n35-LP_Ori")
+m = cloudytab.CloudyModel("models/shell-R005-n30-LP_Ori20")
+m2 = cloudytab.CloudyModel("models/shell-R003-n29-LP_Ori20")
+m3 = cloudytab.CloudyModel("models/shell-R001-n25-LP_Ori22")
 
-m.data["ovr"]
+m3.data["ovr"]
 
 import matplotlib.pyplot as plt
 import seaborn as sns
@@ -43,21 +43,22 @@ r_pc = m.data["rad"]["radius"]*u.cm.to(u.pc)
 AV = m.data["ovr"]["AV(point)"]
 r_pc2 = m2.data["rad"]["radius"]*u.cm.to(u.pc)
 r_pc3 = m3.data["rad"]["radius"]*u.cm.to(u.pc)
+AV3 = m3.data["ovr"]["AV(point)"]
 
 # Plot density and temperature against radius in parsec
 
 fig, ax = plt.subplots()
-ax.plot(r_pc, m.data["ovr"]["eden"], label=r"Electron density")
-ax.plot(r_pc, m.data["ovr"]["hden"], label=r"Total H density")
-ax.plot(r_pc, m.data["ovr"]["Te"], label=r"Temperature")
+ax.plot(r_pc3, m3.data["ovr"]["eden"], label=r"Electron density")
+ax.plot(r_pc3, m3.data["ovr"]["hden"], label=r"Total H density")
+ax.plot(r_pc3, m3.data["ovr"]["Te"], label=r"Temperature")
 ax.legend()
 ax.set(xlim=[0, None], yscale='log', xlabel="Radius, pc")
 
 # +
 fig, ax = plt.subplots()
-ax.plot(AV, m.data["ovr"]["eden"])
-ax.plot(AV, m.data["ovr"]["hden"])
-ax.plot(AV, m.data["ovr"]["Te"])
+ax.plot(AV3, m3.data["ovr"]["eden"])
+ax.plot(AV3, m3.data["ovr"]["hden"])
+ax.plot(AV3, m3.data["ovr"]["Te"])
 
 ax.set(xlim=[0, None], yscale='log')
 # -
@@ -69,9 +70,13 @@ fig, ax = plt.subplots()
 
 ax.plot(r_pc, m.data["ovr"]["eden"], color="r", label=r"Electron density")
 ax.plot(r_pc2, m2.data["ovr"]["eden"], color="r", ls="--", label="_nolabel_")
+ax.plot(r_pc3, m3.data["ovr"]["eden"], color="r", ls=":", label="_nolabel_")
+
 
 ax.plot(r_pc, m.data["ovr"]["hden"], color="c", label=r"Total H density")
 ax.plot(r_pc2, m2.data["ovr"]["hden"], color="c", ls="--", label="_nolabel_")
+ax.plot(r_pc3, m3.data["ovr"]["hden"], color="c", ls=":", label="_nolabel_")
+
 
 ax.legend()
 ax.set(xlim=[0, None], yscale='log', xlabel="Radius, pc")
@@ -87,9 +92,9 @@ fig, ax = plt.subplots()
 def Pgas(ovr_tab):
     return (ovr_tab["eden"] + ovr_tab["hden"])*ovr_tab["Te"]*1.38e-16
 
-ax.plot(r_pc, Pgas(m.data["ovr"]), label=r"R005-n30-LP_Ori")
-ax.plot(r_pc2, Pgas(m2.data["ovr"]), label="R003-n25-LP_Ori")
-ax.plot(r_pc3, Pgas(m3.data["ovr"]), label="R010-n35-LP_Ori")
+ax.plot(r_pc, Pgas(m.data["ovr"]), label=r"R005-n30-LP_Ori20")
+ax.plot(r_pc2, Pgas(m2.data["ovr"]), label="R003-n28-LP_Ori20")
+ax.plot(r_pc3, Pgas(m3.data["ovr"]), label="R001-n25-LP_Ori22")
 
 
 ax.legend(loc="upper left", fontsize="small")
@@ -129,10 +134,10 @@ for band in em.colnames[1:]:
     if band in drop_these_bands:
         continue
     e = em[band]*(r_pc/0.01)**2
-    ax.plot(r_pc, e/np.mean(e), label=band)
+    ax.plot(r_pc, e/np.max(e), label=band)
     
 ax.legend(ncol=2, fontsize="xx-small")
-ax.set(xlim=[0, None], yscale='linear', ylim=[0.0, 6.0], xlabel="Radius, pc", ylabel="Emissivity")
+ax.set(xlim=[0, None], yscale='linear', ylim=[0.0, 1.05], xlabel="Radius, pc", ylabel=r"Emissivity $\times\ R^2$")
 None
 
 # +
@@ -145,7 +150,7 @@ for band in em.colnames[1:]:
     
     
 ax.legend(ncol=2, fontsize="xx-small", title=label)
-ax.set(xlim=[0, None], yscale='log', ylim=[1e-20, None], xlabel="Radius, pc", ylabel="Emissivity")
+ax.set(xlim=[0, None], yscale='log', ylim=[1e-20, None], xlabel="Radius, pc", ylabel=r"Emissivity $\times\ R^2$")
 None
 
 # +
@@ -159,14 +164,31 @@ for band in em.colnames[1:]:
     if band in drop_these_bands:
         continue
     e = em[band]*(r_pc/0.01)**2
-    ax.plot(r_pc, e/np.mean(e), label=band)
+    ax.plot(r_pc, e/np.max(e), label=band)
     
 ax.legend(ncol=2, fontsize="xx-small", title=label)
-ax.set(xlim=[0, None], yscale='linear', ylim=[0.0, 6.0], xlabel="Radius, pc", ylabel=r"Emissivity $\times\ R^2$")
+ax.set(xlim=[0, None], yscale='linear', ylim=[0.0, 1.1], xlabel="Radius, pc", ylabel=r"Emissivity $\times\ R^2$")
 None
 
 # +
 label = "R001-n25-LP_Ori22"
+m = cloudytab.CloudyModel(f"models/shell-{label}")
+r_pc = m.data["rad"]["radius"]*u.cm.to(u.pc)
+em = m.data["emis"]
+fig, ax = plt.subplots(figsize=(15, 10))
+
+for band in em.colnames[1:]:
+    if band in drop_these_bands:
+        continue
+    e = em[band]
+    ax.plot(r_pc, e*(r_pc/0.01)**2, label=band)
+    
+ax.legend(ncol=2, fontsize="xx-small", title=label)
+ax.set(xlim=[0, None], yscale='log', ylim=[1e-20, None], xlabel="Radius, pc", ylabel=r"Emissivity $\times\ R^2$")
+None
+
+# +
+label = "R001-n25-LP_Ori22thick"
 m = cloudytab.CloudyModel(f"models/shell-{label}")
 r_pc = m.data["rad"]["radius"]*u.cm.to(u.pc)
 em = m.data["emis"]

@@ -282,7 +282,10 @@ CLOSED: [2018-03-16 Fri 10:55]
   - [X] Try and save some emissivity profiles
     + All line labels are saved in [[file:models/cloudy-line-labels.dat]]
     + This includes continuum bands
-  - [ ] Refine the densities, so they all have shell at the same radius
+  - [X] Refine the densities, so they all have shell at the same radius
+    - We have a few models that all end up with the shell at 0.01 pc
+      - ~R003-n29-LP_Ori20~, ~R005-n30-LP_Ori20~, ~R001-n25-LP_Ori22~
+      - The last one is with a hotter star and has a higher ionized density, but identical neutral shell density
 
 
 #+BEGIN_SRC python
@@ -357,6 +360,104 @@ CLOSED: [2018-03-16 Fri 10:55]
   O  3 5006.84A
   nInu 6209.66A
   InwT 6209.66A
+  IRAC 3.60000m
+  IRAC 4.50000m
+  IRAC 5.80000m
+  IRAC 8.00000m
+  F12  12.0000m
+  F25  25.0000m
+  PAC1 70.0000m
+  PAC3 160.000m
+  end of lines
+  """)
+
+  for R_pc, hden in [
+          [0.005, 3.0], [0.003, 2.9], [0.001, 2.5],
+  ]:
+      for id_, L4, T3, log_g in stars:
+          cloudy_input = (intro_input(hden, R_pc, id_)
+                          + star_input(id_, L4, T3, log_g)
+                          + hden_input(hden)
+                          + radius_input(R_pc)
+                          + outro_input)
+          file_name = f"models/{file_stem(hden, R_pc, id_)}.in"
+          with open(file_name, "w") as f:
+              f.write(cloudy_input)
+
+#+END_SRC
+
+#+RESULTS:
+: None
+
+Finally, try different shell thickness
+
+#+BEGIN_SRC python
+  from textwrap import dedent
+  import numpy as np
+
+  LSUN = 3.82e33
+
+  def star_input(id_, L4, T3, log_g):
+      s = f"# {id_} star" + "\n"
+      s += f"# T_eff = {1e3*T3:.0f} K, L = {1e4*L4:.2e} L_sun, log(g) = {log_g:.2f}" + "\n"
+      s += f"table star tlusty OBstar 3-dim {1e3*T3:.0f} {log_g} 0.0" + "\n"
+      s += f"luminosity total {np.log10(LSUN*1e4*L4):.2f}" + "\n"
+      return s
+
+  def hden_input(hden):
+      s = f"hden {hden:.2f} # density of {10**hden} pcc" + "\n"
+      s += "constant pressure" + "\n"
+      s += "stop AV 0.5" + "\n"
+      s += "stop temperature 100 K linear" + "\n"
+      return s
+
+  def file_stem(hden, R_pc, id_):
+      return f"shell-R{int(1000*R_pc):03d}-n{int(10*hden):02d}-{id_}" 
+
+  def intro_input(hden, R_pc, id_):
+      s = f"title Dusty shell: star {id_}, R_in = {R_pc} pc, density {10**hden} pcc" + "\n"
+      s += f"set save prefix \"{file_stem(hden, R_pc, id_)}\"" + "\n"
+      return s
+
+  stars = [
+      # id_   L4     T3    log_g
+      ["LP_Ori20thick", 0.16, 20.0, 4.0],
+      ["LP_Ori22thick", 0.16, 22.0, 4.0],
+  ]
+
+  def radius_input(R_pc):
+      R_in = 3.085677582e18*R_pc
+      s = f"# Start at LP Ori inner radius: {R_pc:.5f} pc" + "\n"
+      s += f"radius {np.log10(R_in)}" + "\n"
+      return s
+
+
+  outro_input = dedent("""\
+  iterate
+  grains orion function sublimation
+  grains PAH
+  abundances HII region no grains
+  cosmic ray background
+  cmb
+  table ism 
+  # save all the output we want
+  save overview last ".ovr"
+  save pressure last ".pre"
+  save physical conditions last ".phys"
+  save continuum last ".cont"
+  # save continuum last every ".zcont"
+  save radius last ".rad"
+  save grain abundance last ".gabun"
+  save grain charge last ".gcharge"
+  save grain continuum last ".gcont"
+  save grain drift velocity last ".gdrift"
+  save grain potential last ".gpot"
+  save grain temperature last ".gtemp"
+  save lines, emissivity last ".emis"
+  H  1 6562.81A
+  Ca B 6562.81A
+  N  2 6583.45A
+  O  3 5006.84A
   IRAC 3.60000m
   IRAC 4.50000m
   IRAC 5.80000m
@@ -1755,6 +1856,16 @@ Check ion fraction versus F(EUV)/n
 
 #+RESULTS:
 [[file:wav-spectra-shell-R001-n28-LP_Ori20.pdf]]
+
+#+call: make-infrared-sed(PREFIX="shell-R001-n25-LP_Ori22")
+
+#+RESULTS:
+[[file:wav-spectra-shell-R001-n25-LP_Ori22.pdf]]
+
+#+call: make-infrared-sed(PREFIX="shell-R001-n25-LP_Ori22thick")
+
+#+RESULTS:
+[[file:wav-spectra-shell-R001-n25-LP_Ori22thick.pdf]]
 
 ** Save continuum every zone
 + I am testing saving this every zone so I can find FUV and EUV flux vs radius
