@@ -180,6 +180,9 @@ CLOSED: [2018-03-16 Fri 10:55]
 
 
 *** LP Ori cloudy models
+:PROPERTIES:
+:header-args:python: :noweb yes
+:END:
 + We think the shell is neutral, so we need to go deeper than previously
 + We can try the ~constant pressure set LOGVALUE~ option to Cloudy
   + ~LOGVALUE~ is log_10 P/k at illuminated face in units of cm^-3 K
@@ -380,7 +383,7 @@ CLOSED: [2018-03-16 Fri 10:55]
 
 #+END_SRC
 
-#+BEGIN_SRC python :noweb yes
+#+BEGIN_SRC python
   <<lp-ori-cloudy-functions>>
 
   stars = [
@@ -532,10 +535,11 @@ Finally, try different shell thickness
 #+RESULTS:
 : None
 
-And one final model where we go to A_V = 1.5 just to get the extinguished incident spectrum
+And one final model where we go to A_V = 1.7 just to get the extinguished incident spectrum
 
 #+BEGIN_SRC python
   <<lp-ori-cloudy-functions>>
+  stars = [
       # id_   L4     T3    log_g
       ["LP_Ori20AV", 0.16, 20.0, 4.0],
   ]
@@ -546,7 +550,7 @@ And one final model where we go to A_V = 1.5 just to get the extinguished incide
       for id_, L4, T3, log_g in stars:
           cloudy_input = (intro_input(hden, R_pc, id_)
                           + star_input(id_, L4, T3, log_g)
-                          + hden_input(hden, 1.5)
+                          + hden_input(hden, 1.7)
                           + magnetic_input(hden, vA=2.0, gamma_m=1.001)
                           + radius_input(R_pc)
                           + outro_input)
@@ -558,6 +562,104 @@ And one final model where we go to A_V = 1.5 just to get the extinguished incide
 
 #+RESULTS:
 : None
+
+Still another: combo model with increased thickness (A_V = 0.5), reduced dust cross section, and magnetic field
+
+#+BEGIN_SRC python
+  <<lp-ori-cloudy-functions>>
+  stars = [
+      # id_   L4     T3    log_g
+      ["LP_Ori20BZ5", 0.16, 20.0, 4.0],
+  ]
+
+  # Multiply all grain component abundances by 0.1
+  grain_commands = [_ for _ in outro_input.split("\n") if _.startswith("grains")]
+  for cmd in grain_commands:
+      outro_input = outro_input.replace(cmd, cmd + " 0.1")
+
+  for R_pc, hden in [
+          [0.001, 2.8],
+  ]:
+      for id_, L4, T3, log_g in stars:
+          cloudy_input = (intro_input(hden, R_pc, id_)
+                          + star_input(id_, L4, T3, log_g)
+                          + hden_input(hden, 0.5)
+                          + magnetic_input(hden, vA=2.0, gamma_m=1.001)
+                          + radius_input(R_pc)
+                          + outro_input)
+          file_name = f"models/{file_stem(hden, R_pc, id_)}.in"
+          with open(file_name, "w") as f:
+              f.write(cloudy_input)
+
+#+END_SRC
+
+#+RESULTS:
+: None
+
+And one with increased thickness and B field, but normal dust
+
+#+BEGIN_SRC python
+  <<lp-ori-cloudy-functions>>
+  stars = [
+      # id_   L4     T3    log_g
+      ["LP_Ori20BB5", 0.16, 20.0, 4.0],
+  ]
+
+  for R_pc, hden in [
+          [0.001, 2.5],
+  ]:
+      for id_, L4, T3, log_g in stars:
+          cloudy_input = (intro_input(hden, R_pc, id_)
+                          + star_input(id_, L4, T3, log_g)
+                          + hden_input(hden, 0.5)
+                          + magnetic_input(hden, vA=2.0, gamma_m=1.001)
+                          + radius_input(R_pc)
+                          + outro_input)
+          file_name = f"models/{file_stem(hden, R_pc, id_)}.in"
+          with open(file_name, "w") as f:
+              f.write(cloudy_input)
+
+#+END_SRC
+
+#+RESULTS:
+: None
+
+And one with intermediate dust reduction: three times smaller instead of ten
+
+#+BEGIN_SRC python
+  <<lp-ori-cloudy-functions>>
+  stars = [
+      # id_   L4     T3    log_g
+      ["LP_Ori20Bz5", 0.16, 20.0, 4.0],
+  ]
+
+  # Multiply all grain component abundances by 0.333
+  grain_commands = [_ for _ in outro_input.split("\n") if _.startswith("grains")]
+  for cmd in grain_commands:
+      outro_input = outro_input.replace(cmd, cmd + " 0.333")
+
+  for R_pc, hden in [
+          [0.001, 2.7],
+  ]:
+      for id_, L4, T3, log_g in stars:
+          cloudy_input = (intro_input(hden, R_pc, id_)
+                          + star_input(id_, L4, T3, log_g)
+                          + hden_input(hden, 0.5)
+                          + magnetic_input(hden, vA=2.0, gamma_m=1.001)
+                          + radius_input(R_pc)
+                          + outro_input)
+          file_name = f"models/{file_stem(hden, R_pc, id_)}.in"
+          with open(file_name, "w") as f:
+              f.write(cloudy_input)
+
+#+END_SRC
+
+#+RESULTS:
+: None
+
+
+
+
 
 ** \theta^1 D
 

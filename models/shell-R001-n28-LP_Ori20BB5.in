@@ -1,16 +1,16 @@
-title Dusty shell: star LP_Ori20AV, R_in = 0.001 pc, density 199.52623149688787 pcc
-set save prefix "shell-R001-n23-LP_Ori20AV"
-# LP_Ori20AV star
+title Dusty shell: star LP_Ori20BB5, R_in = 0.001 pc, density 630.957344480193 pcc
+set save prefix "shell-R001-n28-LP_Ori20BB5"
+# LP_Ori20BB5 star
 # T_eff = 20000 K, L = 1.60e+03 L_sun, log(g) = 4.00
 table star tlusty OBstar 3-dim 20000 4.0 0.0
 luminosity total 36.79
-hden 2.30 # density of 199.52623149688787 pcc
+hden 2.80 # density of 630.957344480193 pcc
 constant pressure
-stop AV 1.70
+stop AV 0.50
 stop temperature 10 K linear
-# Magnetic field of 14.756 microG to give Alfven speed
+# Magnetic field of 26.255 microG to give Alfven speed
 # of 2.000 km/s for density of 1000.0 pcc
-magnetic field, log(B) = -4.831, tangled 1.00100
+magnetic field, log(B) = -4.581, tangled 1.00100
 turbulence equipartition
 # Start at LP Ori inner radius: 0.00100 pc
 radius 15.489350545293727
