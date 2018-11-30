@@ -310,14 +310,16 @@ CLOSED: [2018-03-16 Fri 10:55]
       s += "constant pressure" + "\n"
       s += f"stop AV {AV:.2f}" + "\n"
       s += "stop temperature 10 K linear" + "\n"
+      s += "iterate" + "\n"
       return s
 
-  def file_stem(hden, R_pc, id_):
-      return f"shell-R{int(1000*R_pc):03d}-n{int(10*hden):02d}-{id_}" 
+  def file_stem(hden, R_pc, id_, extra=""):
+      """Construct file name from radius, density and star id"""
+      return f"shell-R{int(1000*R_pc):03d}-n{int(10*hden):02d}-{id_}" + extra
 
-  def intro_input(hden, R_pc, id_):
+  def intro_input(hden, R_pc, id_, extra=""):
       s = f"title Dusty shell: star {id_}, R_in = {R_pc} pc, density {10**hden} pcc" + "\n"
-      s += f"set save prefix \"{file_stem(hden, R_pc, id_)}\"" + "\n"
+      s += f"set save prefix \"{file_stem(hden, R_pc, id_, extra)}\"" + "\n"
       return s
 
   def radius_input(R_pc):
@@ -341,17 +343,16 @@ CLOSED: [2018-03-16 Fri 10:55]
            # of {vA:.3f} km/s for density of {10**hden1} pcc
            """)
       s += f"magnetic field, log(B) = {np.log10(B0):.3f}, tangled {gamma_m:.5f}" + "\n"
-      s += "turbulence equipartition" + "\n"
+      # s += "# turbulence equipartition" + "\n"
       return s
-    
-  outro_input = dedent("""\
-  iterate
-  grains orion function sublimation
-  grains PAH
-  abundances HII region no grains
+
+  extra_input = dedent("""\
   cosmic ray background
   cmb
   table ism 
+  """)
+
+  save_input = dedent("""\
   # save all the output we want
   save overview last ".ovr"
   save pressure last ".pre"
@@ -381,6 +382,13 @@ CLOSED: [2018-03-16 Fri 10:55]
   end of lines
   """)
 
+  dust_input = dedent("""\
+  grains orion function sublimation
+  grains PAH
+  abundances HII region no grains
+  """)
+
+  outro_input = extra_input + dust_input + save_input
 #+END_SRC
 
 #+BEGIN_SRC python
@@ -662,6 +670,227 @@ And one with intermediate dust reduction: three times smaller instead of ten
 
 
 ** \theta^1 D
++ Stellar data from Simon-Diaz:2006b
++ Use the same infrastructure as for LP Ori
+*** \theta^1 D Cloudy models
+:PROPERTIES:
+:header-args:python: :noweb yes
+:END:
+
+First attempt
+
+#+BEGIN_SRC python
+  <<lp-ori-cloudy-functions>>
+
+  stars = [
+      # id_   L4     T3    log_g
+      ["th1D", 2.95, 32.0, 4.2],
+  ]
+  
+  for R_pc, hden, AV in [
+          [0.003, 3.3, 0.02], [0.003, 3.5, 0.02], [0.003, 3.7, 0.02],
+  ]:
+      for id_, L4, T3, log_g in stars:
+          cloudy_input = (intro_input(hden, R_pc, id_)
+                          + star_input(id_, L4, T3, log_g)
+                          + hden_input(hden, AV)
+                          + magnetic_input(hden, hden1=hden, vA=2.0, gamma_m=1.001)
+                          + radius_input(R_pc)
+                          + outro_input)
+          file_name = f"models/{file_stem(hden, R_pc, id_)}.in"
+          with open(file_name, "w") as f:
+              f.write(cloudy_input)
+
+#+END_SRC
+
+#+RESULTS:
+: None
+
+Put up the density to 1e5 and decrease the dust opacity by factor of 3, and put up the shell thickness a bit
+
+#+BEGIN_SRC python
+  <<lp-ori-cloudy-functions>>
+
+  stars = [
+      # id_   L4     T3    log_g
+      ["th1D-z", 2.95, 32.0, 4.2],
+  ]
+
+  # Multiply all grain component abundances by 0.333
+  grain_commands = [_ for _ in outro_input.split("\n") if _.startswith("grains")]
+  for cmd in grain_commands:
+      outro_input = outro_input.replace(cmd, cmd + " 0.333")
+
+  for R_pc, hden, AV in [
+          [0.003, 4.5, 0.03], [0.003, 5.0, 0.03], [0.003, 5.0, 0.05],
+  ]:
+      for id_, L4, T3, log_g in stars:
+          extra = f"-AV{int(100*AV):1d}"
+          cloudy_input = (intro_input(hden, R_pc, id_, extra)
+                          + star_input(id_, L4, T3, log_g)
+                          + hden_input(hden, AV)
+                          + magnetic_input(hden, hden1=hden, vA=2.0, gamma_m=1.001)
+                          + radius_input(R_pc)
+                          + outro_input)
+          file_name = f"models/{file_stem(hden, R_pc, id_, extra)}.in"
+          with open(file_name, "w") as f:
+              f.write(cloudy_input)
+
+#+END_SRC
+
+#+RESULTS:
+: None
+
+Try single size dust - first 1 micron
+
+#+BEGIN_SRC python
+  <<lp-ori-cloudy-functions>>
+
+  stars = [
+      # id_   L4     T3    log_g
+      ["th1D-1m000", 2.95, 32.0, 4.2],
+  ]
+
+  dust_input = dedent("""\
+  grains "silicate_1m000.opc" function sublimation
+  abundances HII region no grains
+  """)
+
+  for R_pc, hden, AV in [
+          [0.003, 4.5, 0.03], [0.003, 5.0, 0.03], [0.003, 5.0, 0.05],
+  ]:
+      for id_, L4, T3, log_g in stars:
+          extra = f"-AV{int(100*AV):1d}"
+          cloudy_input = (intro_input(hden, R_pc, id_, extra)
+                          + star_input(id_, L4, T3, log_g)
+                          + hden_input(hden, AV)
+                          + magnetic_input(hden, hden1=hden, vA=2.0, gamma_m=1.001)
+                          + radius_input(R_pc)
+                          + extra_input
+                          + dust_input
+                          + save_input)
+          file_name = f"models/{file_stem(hden, R_pc, id_, extra)}.in"
+          with open(file_name, "w") as f:
+              f.write(cloudy_input)
+
+#+END_SRC
+
+#+RESULTS:
+: None
+
+Now 0.1 micron
+
+#+BEGIN_SRC python
+  <<lp-ori-cloudy-functions>>
+
+  stars = [
+      # id_   L4     T3    log_g
+      ["th1D-0m100", 2.95, 32.0, 4.2],
+  ]
+
+  dust_input = dedent("""\
+  grains "silicate_0m100.opc" function sublimation 0.3
+  abundances HII region no grains
+  """)
+
+  for R_pc, hden, AV in [
+          [0.003, 4.5, 0.03], [0.003, 5.0, 0.03], [0.003, 5.0, 0.05],
+  ]:
+      for id_, L4, T3, log_g in stars:
+          extra = f"-AV{int(100*AV):1d}"
+          cloudy_input = (intro_input(hden, R_pc, id_, extra)
+                          + star_input(id_, L4, T3, log_g)
+                          + hden_input(hden, AV)
+                          + magnetic_input(hden, hden1=hden, vA=2.0, gamma_m=1.001)
+                          + radius_input(R_pc)
+                          + extra_input
+                          + dust_input
+                          + save_input)
+          file_name = f"models/{file_stem(hden, R_pc, id_, extra)}.in"
+          with open(file_name, "w") as f:
+              f.write(cloudy_input)
+
+#+END_SRC
+
+#+RESULTS:
+: None
+
+Now both 0.1 micron (0.1 abundance) and 1 micron
+
+#+BEGIN_SRC python
+  <<lp-ori-cloudy-functions>>
+
+  stars = [
+      # id_   L4     T3    log_g
+      ["th1D-twin", 2.95, 32.0, 4.2],
+  ]
+
+  dust_input = dedent("""\
+  grains "silicate_1m000.opc" function sublimation 1.0
+  grains "silicate_0m100.opc" function sublimation 0.1
+  abundances HII region no grains
+  """)
+
+  for R_pc, hden, AV in [
+          [0.003, 4.5, 0.03], [0.003, 5.0, 0.03], [0.003, 5.0, 0.05],
+  ]:
+      for id_, L4, T3, log_g in stars:
+          extra = f"-AV{int(100*AV):1d}"
+          cloudy_input = (intro_input(hden, R_pc, id_, extra)
+                          + star_input(id_, L4, T3, log_g)
+                          + hden_input(hden, AV)
+                          + magnetic_input(hden, hden1=hden, vA=2.0, gamma_m=1.001)
+                          + radius_input(R_pc)
+                          + extra_input
+                          + dust_input
+                          + save_input)
+          file_name = f"models/{file_stem(hden, R_pc, id_, extra)}.in"
+          with open(file_name, "w") as f:
+              f.write(cloudy_input)
+
+#+END_SRC
+
+#+RESULTS:
+: None
+
+And add in a small amount of 0.01 micron too for the IRAC bands, at the same reducing the 0.1 micron by 2
+
+#+BEGIN_SRC python
+  <<lp-ori-cloudy-functions>>
+
+  stars = [
+      # id_   L4     T3    log_g
+      ["th1D-triple", 2.95, 32.0, 4.2],
+  ]
+
+  dust_input = dedent("""\
+  grains "silicate_1m000.opc" function sublimation 1.0
+  grains "silicate_0m100.opc" function sublimation 0.03
+  grains "silicate_0m010.opc" function sublimation 0.002
+  abundances HII region no grains
+  """)
+
+  for R_pc, hden, AV in [
+          [0.001, 4.5, 0.03], [0.003, 5.0, 0.03], [0.003, 5.0, 0.05],
+  ]:
+      for id_, L4, T3, log_g in stars:
+          extra = f"-AV{int(100*AV):1d}"
+          cloudy_input = (intro_input(hden, R_pc, id_, extra)
+                          + star_input(id_, L4, T3, log_g)
+                          + hden_input(hden, AV)
+                          + magnetic_input(hden, hden1=hden, vA=2.0, gamma_m=1.001)
+                          + radius_input(R_pc)
+                          + extra_input
+                          + dust_input
+                          + save_input)
+          file_name = f"models/{file_stem(hden, R_pc, id_, extra)}.in"
+          with open(file_name, "w") as f:
+              f.write(cloudy_input)
+
+#+END_SRC
+
+#+RESULTS:
+: None
 
 * Look at dust 
 
@@ -716,6 +945,9 @@ And one with intermediate dust reduction: three times smaller instead of ten
                       pass
 
 #+END_SRC
+
+#+RESULTS:
+: None
 
 
 ** Try plotting a bunch of models: potential versus ionization parameter
@@ -1900,6 +2132,12 @@ Check ion fraction versus F(EUV)/n
 [[file:spectra-shell-R005-n30-LP_Ori.pdf]]
 
 
+#+call: make-sed(PREFIX="shell-R003-n35-th1D")
+
+#+RESULTS:
+[[file:spectra-shell-R003-n35-th1D.pdf]]
+
+
 ** Look at the infrared SED from the models
 + This might not be so useful with the current models since they go too deep for comparison with the bow shocks
 + But it will be a start at least
@@ -2054,6 +2292,62 @@ Check ion fraction versus F(EUV)/n
 
 #+RESULTS:
 [[file:wav-spectra-shell-R001-n23-LP_Ori20AV.pdf]]
+
+#+call: make-plot(PREFIX="shell-R001-n27-LP_Ori20Bz5")
+
+#+RESULTS:
+[[file:models/shell-R001-n27-LP_Ori20Bz5.png]]
+
+
+#+call: make-infrared-sed(PREFIX="shell-R003-n35-th1D")
+
+#+RESULTS:
+[[file:wav-spectra-shell-R003-n35-th1D.pdf]]
+
+#+call: make-infrared-sed(PREFIX="shell-R003-n50-th1D-z-AV5")
+
+#+RESULTS:
+[[file:wav-spectra-shell-R003-n50-th1D-z-AV5.pdf]]
+
+#+call: make-plot(PREFIX="shell-R003-n50-th1D-z-AV5")
+
+#+RESULTS:
+[[file:models/shell-R003-n50-th1D-z-AV5.png]]
+
+#+call: make-infrared-sed(PREFIX="shell-R003-n50-th1D-1m000-AV3")
+
+#+RESULTS:
+[[file:wav-spectra-shell-R003-n50-th1D-1m000-AV3.pdf]]
+
+#+call: make-infrared-sed(PREFIX="shell-R003-n50-th1D-0m100-AV3")
+
+#+RESULTS:
+[[file:wav-spectra-shell-R003-n50-th1D-0m100-AV3.pdf]]
+
+#+call: make-infrared-sed(PREFIX="shell-R003-n50-th1D-twin-AV3")
+
+#+RESULTS:
+[[file:wav-spectra-shell-R003-n50-th1D-twin-AV3.pdf]]
+
+#+call: make-plot(PREFIX="shell-R003-n50-th1D-twin-AV3")
+
+#+RESULTS:
+[[file:models/shell-R003-n50-th1D-twin-AV3.png]]
+
+#+call: make-infrared-sed(PREFIX="shell-R003-n50-th1D-triple-AV3")
+
+#+RESULTS:
+[[file:wav-spectra-shell-R003-n50-th1D-triple-AV3.pdf]]
+
+#+call: make-infrared-sed(PREFIX="shell-R001-n45-th1D-triple-AV3")
+
+#+RESULTS:
+[[file:wav-spectra-shell-R001-n45-th1D-triple-AV3.pdf]]
+
+#+call: make-infrared-sed(PREFIX="shell-R003-n50-th1D-triple-AV5")
+
+#+RESULTS:
+[[file:wav-spectra-shell-R003-n50-th1D-triple-AV5.pdf]]
 
 
 ** Save continuum every zone

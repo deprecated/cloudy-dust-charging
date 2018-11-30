@@ -215,34 +215,34 @@ None
 # Repeat for the models with constant Alfven speed
 
 # +
-models = ["R003-n29-LP_Ori20", "R005-n30-LP_Ori20", "R001-n23-LP_Ori20"]
+models = ["R003-n29-LP_Ori20BB", "R005-n30-LP_Ori20BB", "R001-n23-LP_Ori20BB", "R001-n27-LP_Ori20Bz5"]
 
 
 fig, ax = plt.subplots(figsize=(10, 6))
 
-for label, color in zip(models, ["c", "orange", "g"]):
-    m = cloudytab.CloudyModel(f"models/shell-{label}BB")
+for label, color in zip(models, ["c", "orange", "g", "r"]):
+    m = cloudytab.CloudyModel(f"models/shell-{label}")
     r_pc = m.data["rad"]["radius"]*u.cm.to(u.pc)
-    ax.plot(r_pc, m.data["pre"]["Pgas"], color=color, label=label+"B")
+    ax.plot(r_pc, m.data["pre"]["Pgas"], color=color, label=label)
     ax.plot(r_pc, m.data["pre"]["P(mag)"] + m.data["pre"]["P(turb)"], ls="--", color=color, label="_nolabel_")
     
-ax.legend(loc="upper left", fontsize="small")
+ax.legend(loc="right", fontsize="small")
 ax.set(xlim=[0, None], ylim=[0, None], yscale='linear', xlabel="Radius, pc", ylabel="Gas pressure")
 None
 
 # +
 fig, ax = plt.subplots(figsize=(10, 6))
 
-for label, color in zip(models, ["c", "orange", "g"]):
-    m = cloudytab.CloudyModel(f"models/shell-{label}BB")
+for label, color in zip(models, ["c", "orange", "g", "r"]):
+    m = cloudytab.CloudyModel(f"models/shell-{label}")
     r_pc = m.data["rad"]["radius"]*u.cm.to(u.pc)
-    ax.plot(r_pc, m.data["ovr"]["hden"], color=color, label=label+"BB")
+    ax.plot(r_pc, m.data["ovr"]["hden"], color=color, label=label)
     ax.plot(r_pc, m.data["ovr"]["eden"], color=color, ls="--", label="_nolabel_")
     ax.plot(r_pc, m.data["ovr"]["Te"], color=color, ls=":", label="_nolabel_")
 
 
     
-ax.legend(loc="upper left", fontsize="small")
+ax.legend(loc="right", fontsize="small")
 ax.set(xlim=[0, None], ylim=[None, None], yscale='log', xlabel="Radius, pc", ylabel="Density")
 None
 # -
@@ -399,6 +399,40 @@ for band in em.colnames[1:]:
 ax.legend(ncol=2, fontsize="xx-small", title=label)
 ax.set(xlim=[0, None], yscale='log', ylim=[1e-20, None], xlabel="Radius, pc", ylabel=r"Emissivity $\times\ R^2$")
 None
+
+# +
+label = "R001-n27-LP_Ori20Bz5"
+m = cloudytab.CloudyModel(f"models/shell-{label}")
+r_pc = m.data["rad"]["radius"]*u.cm.to(u.pc)
+em = m.data["emis"]
+fig, ax = plt.subplots(figsize=(15, 10))
+
+for band in em.colnames[1:]:
+    if band in drop_these_bands:
+        continue
+    e = em[band]
+    ax.plot(r_pc, e*(r_pc/0.01)**2, label=band)
+    
+ax.legend(ncol=2, fontsize="xx-small", title=label)
+ax.set(xlim=[0, None], yscale='log', ylim=[1e-20, None], xlabel="Radius, pc", ylabel=r"Emissivity $\times\ R^2$")
+None
+
+# +
+label = "R001-n27-LP_Ori20Bz5"
+m = cloudytab.CloudyModel(f"models/shell-{label}")
+r_pc = m.data["rad"]["radius"]*u.cm.to(u.pc)
+em = m.data["emis"]
+fig, ax = plt.subplots(figsize=(15, 10))
+
+for band in em.colnames[1:]:
+    if band in drop_these_bands:
+        continue
+    e = em[band]
+    ax.plot(r_pc, e/e[r_pc > 0.008].max(), label=band)
+    
+ax.legend(ncol=2, fontsize="xx-small", title=label)
+ax.set(xlim=[0, None], yscale='linear', ylim=[0.0, 1.2], xlabel="Radius, pc", ylabel=r"Emissivity")
+None
 # -
 
 # ## Grain drift
@@ -406,7 +440,8 @@ None
 # It looks like the grains become uncoupled at the smallest radii
 
 # +
-label = "R001-n23-LP_Ori20BB"
+#label = "R001-n23-LP_Ori20BB"
+label = "R001-n27-LP_Ori20Bz5"
 m = cloudytab.CloudyModel(f"models/shell-{label}")
 r_pc = m.data["rad"]["radius"]*u.cm.to(u.pc)
 vdrift= m.data["gdrift"]
@@ -427,5 +462,234 @@ None
 # -
 
 # So, the drift velocity is safely subsonic and sub-alfvenic in the shell and in the outer part of the ionized gas.
+
+# +
+label = "R003-n50-th1D-z-AV5"
+m = cloudytab.CloudyModel(f"models/shell-{label}")
+r_pc = m.data["rad"]["radius"]*u.cm.to(u.pc)
+vdrift= m.data["gdrift"]
+fig, ax = plt.subplots(figsize=(15, 10))
+
+for grain in vdrift.colnames[1:]:
+    if grain.startswith("pah"):
+        continue
+    v = vdrift[grain]
+    ax.plot(r_pc, v, label=grain)
+    
+ax.plot(r_pc, m.data["pre"]["cad(wind km/s)"], ls="--", color="k", label="sound speed")
+ax.plot(r_pc, 2.0*np.ones_like(r_pc), ls=":", color="k", label="Alfven speed")
+
+ax.legend(ncol=2, fontsize="xx-small", title=label)
+ax.set(xlim=[0, None], yscale='log', ylim=[None, None], xlabel="Radius, pc", ylabel=r"Drift velocity")
+None
+# -
+
+# ## Look at theta 1 D
+
+# +
+models = [f"R003-{_}-th1D" for _ in ["n33", "n35", "n37"]]
+
+fig, ax = plt.subplots(figsize=(10, 6))
+
+for label, color in zip(models, ["c", "orange", "g"]):
+    m = cloudytab.CloudyModel(f"models/shell-{label}")
+    r_pc = m.data["rad"]["radius"]*u.cm.to(u.pc)
+    ax.plot(r_pc, m.data["ovr"]["hden"], color=color, label=label)
+    ax.plot(r_pc, m.data["ovr"]["eden"], color=color, ls="--", label="_nolabel_")
+    ax.plot(r_pc, m.data["ovr"]["Te"], color=color, ls=":", label="_nolabel_")
+
+
+    
+ax.legend(loc="best", fontsize="small")
+ax.set(xlim=[0, None], ylim=[None, None], yscale='log', xlabel="Radius, pc", ylabel="Density")
+None
+
+# +
+models = ["R003-n45-th1D-z-AV3", "R003-n50-th1D-z-AV3", "R003-n50-th1D-z-AV5"]
+
+fig, ax = plt.subplots(figsize=(10, 6))
+
+for label, color in zip(models, ["c", "orange", "g"]):
+    m = cloudytab.CloudyModel(f"models/shell-{label}")
+    r_pc = m.data["rad"]["radius"]*u.cm.to(u.pc)
+    ax.plot(r_pc, m.data["ovr"]["hden"], color=color, label=label)
+    ax.plot(r_pc, m.data["ovr"]["eden"], color=color, ls="--", label="_nolabel_")
+    ax.plot(r_pc, m.data["ovr"]["Te"], color=color, ls=":", label="_nolabel_")
+
+
+    
+ax.legend(loc="best", fontsize="small")
+ax.set(xlim=[0, None], ylim=[None, None], yscale='log', xlabel="Radius, pc", ylabel="Density")
+None
+
+# +
+fig, ax = plt.subplots(figsize=(10, 6))
+
+for label, color in zip(models, ["c", "orange", "g"]):
+    m = cloudytab.CloudyModel(f"models/shell-{label}")
+    r_pc = m.data["rad"]["radius"]*u.cm.to(u.pc)
+    ax.plot(r_pc, m.data["pre"]["Pgas"], color=color, label=label)
+    ax.plot(r_pc, m.data["pre"]["P(mag)"] + m.data["pre"]["P(turb)"], ls="--", color=color, label="_nolabel_")
+    ax.plot(r_pc, m.data["pre"]["Pinteg"], ls=":", color=color, label="_nolabel_")
+    
+ax.legend(loc="best", fontsize="small")
+ax.set(xlim=[0, None], ylim=[0, None], yscale='linear', xlabel="Radius, pc", ylabel="Gas pressure")
+None
+
+# +
+label = "R003-n50-th1D-z-AV5"
+m = cloudytab.CloudyModel(f"models/shell-{label}")
+r_pc = m.data["rad"]["radius"]*u.cm.to(u.pc)
+em = m.data["emis"]
+fig, ax = plt.subplots(figsize=(15, 10))
+
+for band in em.colnames[1:]:
+    if band in drop_these_bands:
+        continue
+    e = em[band]
+    ax.plot(r_pc, e, label=band)
+    
+ax.legend(ncol=2, fontsize="xx-small", title=label)
+ax.set(xlim=[0, None], yscale='log', ylim=[None, None], xlabel="Radius, pc", ylabel=r"Emissivity")
+None
+
+# +
+models = ["R003-n45-th1D-1m000-AV3", "R003-n50-th1D-1m000-AV3", "R003-n50-th1D-1m000-AV5"]
+
+fig, ax = plt.subplots(figsize=(10, 6))
+
+for label, color in zip(models, ["c", "orange", "g"]):
+    m = cloudytab.CloudyModel(f"models/shell-{label}")
+    r_pc = m.data["rad"]["radius"]*u.cm.to(u.pc)
+    ax.plot(r_pc, m.data["ovr"]["hden"], color=color, label=label)
+    ax.plot(r_pc, m.data["ovr"]["eden"], color=color, ls="--", label="_nolabel_")
+    ax.plot(r_pc, m.data["ovr"]["Te"], color=color, ls=":", label="_nolabel_")
+
+
+    
+ax.legend(loc="best", fontsize="small")
+ax.set(xlim=[0, None], ylim=[None, None], yscale='log', xlabel="Radius, pc", ylabel="Density")
+None
+
+# +
+label = "R003-n50-th1D-1m000-AV5"
+m = cloudytab.CloudyModel(f"models/shell-{label}")
+r_pc = m.data["rad"]["radius"]*u.cm.to(u.pc)
+em = m.data["emis"]
+fig, ax = plt.subplots(figsize=(15, 10))
+
+for band in em.colnames[1:]:
+    if band in drop_these_bands:
+        continue
+    e = em[band]
+    ax.plot(r_pc, e, label=band)
+    
+ax.legend(ncol=2, fontsize="xx-small", title=label)
+ax.set(xlim=[0, None], yscale='log', ylim=[None, None], xlabel="Radius, pc", ylabel=r"Emissivity")
+None
+
+# +
+models = ["R003-n45-th1D-0m100-AV3", "R003-n50-th1D-0m100-AV3", "R003-n50-th1D-0m100-AV5"]
+
+fig, ax = plt.subplots(figsize=(10, 6))
+
+for label, color in zip(models, ["c", "orange", "g"]):
+    m = cloudytab.CloudyModel(f"models/shell-{label}")
+    r_pc = m.data["rad"]["radius"]*u.cm.to(u.pc)
+    ax.plot(r_pc, m.data["ovr"]["hden"], color=color, label=label)
+    ax.plot(r_pc, m.data["ovr"]["eden"], color=color, ls="--", label="_nolabel_")
+    ax.plot(r_pc, m.data["ovr"]["Te"], color=color, ls=":", label="_nolabel_")
+
+
+    
+ax.legend(loc="best", fontsize="small")
+ax.set(xlim=[0, None], ylim=[None, None], yscale='log', xlabel="Radius, pc", ylabel="Density")
+None
+
+# +
+label = "R003-n50-th1D-0m100-AV5"
+m = cloudytab.CloudyModel(f"models/shell-{label}")
+r_pc = m.data["rad"]["radius"]*u.cm.to(u.pc)
+em = m.data["emis"]
+fig, ax = plt.subplots(figsize=(15, 10))
+
+for band in em.colnames[1:]:
+    if band in drop_these_bands:
+        continue
+    e = em[band]
+    ax.plot(r_pc, e, label=band)
+    
+ax.legend(ncol=2, fontsize="xx-small", title=label)
+ax.set(xlim=[0, None], yscale='log', ylim=[None, None], xlabel="Radius, pc", ylabel=r"Emissivity")
+None
+
+# +
+models = ["R003-n45-th1D-twin-AV3", "R003-n50-th1D-twin-AV3", "R003-n50-th1D-twin-AV5"]
+
+fig, ax = plt.subplots(figsize=(10, 6))
+
+for label, color in zip(models, ["c", "orange", "g"]):
+    m = cloudytab.CloudyModel(f"models/shell-{label}")
+    r_pc = m.data["rad"]["radius"]*u.cm.to(u.pc)
+    ax.plot(r_pc, m.data["ovr"]["hden"], color=color, label=label)
+    ax.plot(r_pc, m.data["ovr"]["eden"], color=color, ls="--", label="_nolabel_")
+    ax.plot(r_pc, m.data["ovr"]["Te"], color=color, ls=":", label="_nolabel_")
+
+
+    
+ax.legend(loc="best", fontsize="small")
+ax.set(xlim=[0, None], ylim=[None, None], yscale='log', xlabel="Radius, pc", ylabel="Density")
+None
+
+# +
+label = "R003-n50-th1D-twin-AV5"
+m = cloudytab.CloudyModel(f"models/shell-{label}")
+r_pc = m.data["rad"]["radius"]*u.cm.to(u.pc)
+em = m.data["emis"]
+fig, ax = plt.subplots(figsize=(15, 10))
+
+for band in em.colnames[1:]:
+    if band in drop_these_bands:
+        continue
+    e = em[band]
+    ax.plot(r_pc, e, label=band)
+    
+ax.legend(ncol=2, fontsize="xx-small", title=label)
+ax.set(xlim=[0, None], yscale='log', ylim=[None, None], xlabel="Radius, pc", ylabel=r"Emissivity")
+None
+
+# +
+models = ["R001-n45-th1D-triple-AV3", "R003-n50-th1D-triple-AV3", "R003-n50-th1D-triple-AV5"]
+
+fig, ax = plt.subplots(figsize=(10, 6))
+
+for label, color in zip(models, ["c", "orange", "g"]):
+    m = cloudytab.CloudyModel(f"models/shell-{label}")
+    r_pc = m.data["rad"]["radius"]*u.cm.to(u.pc)
+    ax.plot(r_pc, m.data["ovr"]["hden"], color=color, label=label)
+    ax.plot(r_pc, m.data["ovr"]["eden"], color=color, ls="--", label="_nolabel_")
+    ax.plot(r_pc, m.data["ovr"]["Te"], color=color, ls=":", label="_nolabel_")
+
+
+    
+ax.legend(loc="best", fontsize="small")
+ax.set(xlim=[0, None], ylim=[None, None], yscale='log', xlabel="Radius, pc", ylabel="Density")
+None
+
+# +
+label = "R003-n50-th1D-triple-AV3"
+m = cloudytab.CloudyModel(f"models/shell-{label}")
+r_pc = m.data["rad"]["radius"]*u.cm.to(u.pc)
+em = m.data["emis"]
+fig, ax = plt.subplots(figsize=(15, 10))
+
+for band in em.colnames[1:]:
+    e = em[band]
+    ax.plot(r_pc, e, label=band)
+    
+ax.legend(ncol=2, fontsize="xx-small", title=label)
+ax.set(xlim=[0, None], yscale='log', ylim=[None, None], xlabel="Radius, pc", ylabel=r"Emissivity")
+None
+# -
 
 

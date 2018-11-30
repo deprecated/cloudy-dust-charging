@@ -1,0 +1,50 @@
+title Dusty shell: star th1D-triple, R_in = 0.003 pc, density 100000.0 pcc
+set save prefix "shell-R003-n50-th1D-triple-AV3"
+# th1D-triple star
+# T_eff = 32000 K, L = 2.95e+04 L_sun, log(g) = 4.20
+table star tlusty OBstar 3-dim 32000 4.2 0.0
+luminosity total 38.05
+hden 5.00 # density of 100000.0 pcc
+constant pressure
+stop AV 0.03
+stop temperature 10 K linear
+iterate
+# Magnetic field of 330.602 microG to give Alfven speed
+# of 2.000 km/s for density of 100000.0 pcc
+magnetic field, log(B) = -3.481, tangled 1.00100
+# Start at LP Ori inner radius: 0.00300 pc
+radius 15.96647180001339
+cosmic ray background
+cmb
+table ism 
+grains "silicate_1m000.opc" function sublimation 1.0
+grains "silicate_0m100.opc" function sublimation 0.03
+grains "silicate_0m010.opc" function sublimation 0.002
+abundances HII region no grains
+# save all the output we want
+save overview last ".ovr"
+save pressure last ".pre"
+save physical conditions last ".phys"
+save continuum last ".cont"
+# save continuum last every ".zcont"
+save radius last ".rad"
+save grain abundance last ".gabun"
+save grain charge last ".gcharge"
+save grain continuum last ".gcont"
+save grain drift velocity last ".gdrift"
+save grain potential last ".gpot"
+save grain temperature last ".gtemp"
+save lines, emissivity last ".emis"
+H  1 6562.81A
+Ca B 6562.81A
+N  2 6583.45A
+O  3 5006.84A
+IRAC 3.60000m
+IRAC 4.50000m
+IRAC 5.80000m
+IRAC 8.00000m
+F12  12.0000m
+F25  25.0000m
+PAC1 70.0000m
+PAC3 160.000m
+end of lines
