@@ -929,6 +929,83 @@ And one final model with the foreground extinction: AV = 2.0
 #+RESULTS:
 : None
 
+That was not the end!  Now, I will do some lower luminosity models, since doing [[id:984E8E7C-D0BE-4F56-B4CB-F904211433F1][Audit of th1D fluxes]] in [[file:../dust-wave-case-studies]]
+
+#+BEGIN_SRC python
+  <<lp-ori-cloudy-functions>>
+
+  stars = [
+      # id_               L4   T3    log_g
+      ["th1D-L25-triple", 2.5, 32.0, 4.2],
+  ]
+
+  dust_input = dedent("""\
+  grains "silicate_1m000.opc" function sublimation 1.0
+  grains "silicate_0m100.opc" function sublimation 0.015
+  grains "silicate_0m010.opc" function sublimation 0.002
+  grains "graphite_0m010.opc" function sublimation 0.0003
+  abundances HII region no grains
+  """)
+
+  for R_pc, hden, AV in [
+          [0.003, 4.7, 0.05], [0.003, 5.0, 0.05], [0.003, 5.0, 0.08],
+  ]:
+      for id_, L4, T3, log_g in stars:
+          extra = f"-AV{int(100*AV):1d}"
+          cloudy_input = (intro_input(hden, R_pc, id_, extra)
+                          + star_input(id_, L4, T3, log_g)
+                          + hden_input(hden, AV)
+                          + magnetic_input(hden, hden1=hden, vA=2.0, gamma_m=1.001)
+                          + radius_input(R_pc)
+                          + extra_input
+                          + dust_input
+                          + save_input)
+          file_name = f"models/{file_stem(hden, R_pc, id_, extra)}.in"
+          with open(file_name, "w") as f:
+              f.write(cloudy_input)
+
+#+END_SRC
+
+#+RESULTS:
+: None
+
+And the AV = 2 model for the foreground
+
+#+BEGIN_SRC python
+  <<lp-ori-cloudy-functions>>
+
+  stars = [
+      # id_   L4     T3    log_g
+      ["th1D-L25-AV200", 2.5, 32.0, 4.2],
+  ]
+
+  dust_input = dedent("""\
+  grains orion function sublimation
+  grains PAH
+  abundances HII region no grains
+  """)
+
+  for R_pc, hden, AV in [
+          [0.003, 5.0, 2.0], 
+  ]:
+      for id_, L4, T3, log_g in stars:
+          cloudy_input = (intro_input(hden, R_pc, id_)
+                          + star_input(id_, L4, T3, log_g)
+                          + hden_input(hden, AV)
+                          + magnetic_input(hden, hden1=hden, vA=2.0, gamma_m=1.001)
+                          + radius_input(R_pc)
+                          + extra_input
+                          + dust_input
+                          + save_input)
+          file_name = f"models/{file_stem(hden, R_pc, id_)}.in"
+          with open(file_name, "w") as f:
+              f.write(cloudy_input)
+
+#+END_SRC
+
+#+RESULTS:
+: None
+
 * Look at dust 
 
 * Graphs
