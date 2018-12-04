@@ -892,6 +892,43 @@ And add in a small amount of 0.01 micron too for the IRAC bands, at the same red
 #+RESULTS:
 : None
 
+And one final model with the foreground extinction: AV = 2.0
+
+#+BEGIN_SRC python
+  <<lp-ori-cloudy-functions>>
+
+  stars = [
+      # id_   L4     T3    log_g
+      ["th1D-AV200", 2.95, 32.0, 4.2],
+  ]
+
+  dust_input = dedent("""\
+  grains orion function sublimation 0.333
+  grains PAH 0.333
+  abundances HII region no grains
+  """)
+
+  for R_pc, hden, AV in [
+          [0.003, 5.0, 2.0], [0.003, 4.0, 2.0],
+  ]:
+      for id_, L4, T3, log_g in stars:
+          cloudy_input = (intro_input(hden, R_pc, id_)
+                          + star_input(id_, L4, T3, log_g)
+                          + hden_input(hden, AV)
+                          + magnetic_input(hden, hden1=hden, vA=2.0, gamma_m=1.001)
+                          + radius_input(R_pc)
+                          + extra_input
+                          + dust_input
+                          + save_input)
+          file_name = f"models/{file_stem(hden, R_pc, id_)}.in"
+          with open(file_name, "w") as f:
+              f.write(cloudy_input)
+
+#+END_SRC
+
+#+RESULTS:
+: None
+
 * Look at dust 
 
 * Graphs
@@ -2349,6 +2386,10 @@ Check ion fraction versus F(EUV)/n
 #+RESULTS:
 [[file:wav-spectra-shell-R003-n50-th1D-triple-AV5.pdf]]
 
+#+call: make-infrared-sed(PREFIX="shell-R003-n50-th1D-AV150")
+
+#+RESULTS:
+[[file:wav-spectra-shell-R003-n50-th1D-AV150.pdf]]
 
 ** Save continuum every zone
 + I am testing saving this every zone so I can find FUV and EUV flux vs radius
