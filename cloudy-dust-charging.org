@@ -1006,6 +1006,47 @@ And the AV = 2 model for the foreground
 #+RESULTS:
 : None
 
+And a few more, slightly higher density
+
+#+BEGIN_SRC python
+  <<lp-ori-cloudy-functions>>
+
+  stars = [
+      # id_               L4   T3    log_g
+      ["th1D-L25-triple", 2.5, 32.0, 4.2],
+  ]
+
+  dust_input = dedent("""\
+  grains "silicate_1m000.opc" function sublimation 1.0
+  grains "silicate_0m100.opc" function sublimation 0.015
+  grains "silicate_0m010.opc" function sublimation 0.002
+  grains "graphite_0m010.opc" function sublimation 0.0003
+  abundances HII region no grains
+  """)
+
+  for R_pc, hden, AV in [
+          [0.003, 5.1, 0.05], [0.003, 5.2, 0.05], [0.003, 5.3, 0.05],
+  ]:
+      for id_, L4, T3, log_g in stars:
+          extra = f"-AV{int(100*AV):1d}"
+          cloudy_input = (intro_input(hden, R_pc, id_, extra)
+                          + star_input(id_, L4, T3, log_g)
+                          + hden_input(hden, AV)
+                          + magnetic_input(hden, hden1=hden, vA=2.0, gamma_m=1.001)
+                          + radius_input(R_pc)
+                          + extra_input
+                          + dust_input
+                          + save_input)
+          file_name = f"models/{file_stem(hden, R_pc, id_, extra)}.in"
+          with open(file_name, "w") as f:
+              f.write(cloudy_input)
+
+#+END_SRC
+
+#+RESULTS:
+: None
+
+
 * Look at dust 
 
 * Graphs

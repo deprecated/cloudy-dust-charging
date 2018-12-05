@@ -5,16 +5,6 @@
 #     display_name: Python 3
 #     language: python
 #     name: python3
-#   language_info:
-#     codemirror_mode:
-#       name: ipython
-#       version: 3
-#     file_extension: .py
-#     mimetype: text/x-python
-#     name: python
-#     nbconvert_exporter: python
-#     pygments_lexer: ipython3
-#     version: 3.6.3
 # ---
 
 import numpy as np
@@ -659,7 +649,7 @@ ax.set(xlim=[0, None], yscale='log', ylim=[None, None], xlabel="Radius, pc", yla
 None
 
 # +
-models = ["R001-n45-th1D-triple-AV3", "R003-n50-th1D-triple-AV3", "R003-n50-th1D-triple-AV5"]
+models = ["R003-n47-th1D-L25-triple-AV5", "R003-n50-th1D-L25-triple-AV5", "R003-n50-th1D-L25-triple-AV8"]
 
 fig, ax = plt.subplots(figsize=(10, 6))
 
@@ -677,7 +667,7 @@ ax.set(xlim=[0, None], ylim=[None, None], yscale='log', xlabel="Radius, pc", yla
 None
 
 # +
-label = "R003-n50-th1D-triple-AV3"
+label = "R003-n50-th1D-L25-triple-AV5"
 m = cloudytab.CloudyModel(f"models/shell-{label}")
 r_pc = m.data["rad"]["radius"]*u.cm.to(u.pc)
 em = m.data["emis"]
@@ -688,7 +678,7 @@ for band in em.colnames[1:]:
     ax.plot(r_pc, e, label=band)
     
 ax.legend(ncol=2, fontsize="xx-small", title=label)
-ax.set(xlim=[0, None], yscale='log', ylim=[None, None], xlabel="Radius, pc", ylabel=r"Emissivity")
+ax.set(xlim=[0, None], yscale='linear', ylim=[1e-17, None], xlabel="Radius, pc", ylabel=r"Emissivity")
 None
 # -
 
