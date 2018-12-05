@@ -1049,6 +1049,33 @@ And a few more, slightly higher density
 
 * Look at dust 
 
+
+* Extract dust cross sections from ~.opc~ files
+
++ This makes ~.xsec~ files in the [[file:dust-opacity]] folder, which have just the cross-section data from the opacity files, for ease of reading
+
+#+BEGIN_SRC python
+  import glob
+  import sys
+  import os
+
+  opc_files = glob.glob("/Users/will/Work/CLOUDY/cloudy/data/*.opc")
+
+  HDR_LINE = "# anu (Ryd) abs_cs_01 (cm^2/H) abs_cs_02....."
+
+  for ofile in opc_files:
+      with open(ofile) as f:
+          text = f.read()
+          istart = text.find(HDR_LINE)
+      nfile = os.path.join("dust-opacity",
+                           os.path.basename(ofile).replace(".opc", ".xsec"))
+      with open(nfile, "w") as f:
+          f.write(text[istart:])
+#+END_SRC
+
+#+RESULTS:
+: None
+
 * Graphs
 
 ** Utility library for reading model
