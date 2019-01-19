@@ -1061,16 +1061,26 @@ And a few more, slightly higher density
 
   opc_files = glob.glob("/Users/will/Work/CLOUDY/cloudy/data/*.opc")
 
-  HDR_LINE = "# anu (Ryd) abs_cs_01 (cm^2/H) abs_cs_02....."
+  ABS_HEADER = "# anu (Ryd) abs_cs_01 (cm^2/H) abs_cs_02....."
+  SCA_HEADER = "# anu (Ryd) sct_cs_01 (cm^2/H) sct_cs_02....."
+  GGG_HEADER = "# anu (Ryd) (1-g)_bin_01 (1-g)_bin_02....."
+  LAST_LINE = "# anu (Ryd) inverse attenuation length (cm^-1)"
 
   for ofile in opc_files:
       with open(ofile) as f:
           text = f.read()
-          istart = text.find(HDR_LINE)
+          i1 = text.find(ABS_HEADER)
+          i2 = text.find(SCA_HEADER)
+          i3 = text.find(GGG_HEADER)
+          i4 = text.find(LAST_LINE)
       nfile = os.path.join("dust-opacity",
-                           os.path.basename(ofile).replace(".opc", ".xsec"))
-      with open(nfile, "w") as f:
-          f.write(text[istart:])
+                           os.path.basename(ofile))
+      with open(nfile.replace(".opc", ".abs"), "w") as f:
+          f.write(text[i1:i2])
+      with open(nfile.replace(".opc", ".sca"), "w") as f:
+          f.write(text[i2:i3])
+      with open(nfile.replace(".opc", ".ggg"), "w") as f:
+          f.write(text[i3:i4])
 #+END_SRC
 
 #+RESULTS:
@@ -1135,6 +1145,9 @@ And a few more, slightly higher density
 ** Try plotting a bunch of models: potential versus ionization parameter
 + Estimate ionization parameter from H neutral fraction 
 + Do a single star at a time, since there may be a secondary dependence on the spectral shape
+#+RESULTS: phi-vs-ipar
+[[file:phi-ipar-MS10-sil-orion01.pdf]]
+
 #+name: phi-vs-ipar
 #+header: :var STAR="MS10" GRAIN="sil-orion01"
 #+BEGIN_SRC python :return figfile :results file
@@ -1179,9 +1192,6 @@ And a few more, slightly higher density
 
   fig.savefig(figfile)
 #+END_SRC
-
-#+RESULTS: phi-vs-ipar
-[[file:phi-ipar-MS10-sil-orion01.pdf]]
 
 #+call: phi-vs-ipar("MS10", "sil-orion10")
 
