@@ -29,8 +29,13 @@ CLOSED: [2018-03-16 Fri 10:55]
 + All sizes in microns
 + 10 size bins
   + 0.005 to 0.25 micron
-+ Bin 04, 0.02 micron, 200 \AA is what dominates in FUV
+  + Factor of roughly 1.5 size increase between adjacent bins
 + Bin 10, 0.21 micron, 2100 \AA dominates in NIR
+  + graphite more important because silicate has a dip there
++ Bin 04, 0.02 micron, 200 \AA is what dominates in FUV
+  + But the contribution from many size bins is important in FUV
+  + see [[file:../dust-wave-case-studies//xsec-dust-silicate_ism_10.pdf]] and the like
+
 
 ** Table of size bins
 
@@ -1660,22 +1665,23 @@ Check ion fraction versus F(EUV)/n
           Te = m.data['ovr']['Te']
           Pgas = (hden + eden)*kB*Te
           Pgas[eden < 0.5*hden] = np.nan
-          for grain in m.data['gpot'].colnames[1::5]:
+          for igrain, grain in enumerate(m.data['gpot'].colnames[1::2]):
+              ls = '--' if 'gra' in grain else '-'
               phi = m.data['gpot'][grain] / kT_eV
-              ax.plot(Prad0/Pgas, phi, alpha=0.7, lw=0.5, color=col)
+              ax.plot(Prad0/Pgas, phi, alpha=0.3, ls=ls, lw=0.2+0.1*igrain, color=col)
 
   p1, p2 = 1.0e-2, 4e4
   pgrid = np.logspace(-2.0, 4.6)
   phifit = 1.5*np.log(pgrid/0.1) 
-  ax.plot(pgrid, phifit, lw=3, color="k")
+  ax.plot(pgrid, phifit, lw=2, ls='--', color="k")
   ax.plot(pgrid, 1.5*phifit, lw=1, color="k")
   ax.plot(pgrid, phifit/1.5, lw=1, color="k")
 
   ax.set(
       yscale='linear',
       xscale='log',
-      xlabel=r'$\Xi = P_\mathrm{rad} / P_\mathrm{gas}$',
-      ylabel=r'$\phi$',
+      xlabel=r'Radiation parameter: $\Xi = P_\mathrm{rad} \,/\, P_\mathrm{gas}$',
+      ylabel=r'Grain potential: $\phi = U  \,/\, k T$',
       xlim=[pgrid[0], pgrid[-1]],
   )
   sns.despine()
@@ -1849,7 +1855,7 @@ Check ion fraction versus F(EUV)/n
       yscale='log',
       xscale='log',
       xlabel=r'Radiation parameter: $\Xi = P_{\mathrm{rad}} / P_{\mathrm{gas}}$',
-      ylabel=r'$V_\mathrm{drift}$, km/s',
+      ylabel=r'$w_\mathrm{drift}$, km/s',
       xlim=[1.0e-2, 4e4],
   )
 
@@ -1861,6 +1867,97 @@ Check ion fraction versus F(EUV)/n
 
 #+RESULTS: drift-pratio-4panel-plot
 [[file:drift-pratio-4panel.pdf]]
+
+Same but for the smallest grains of all
+
+#+name: drift-pratio-small-grains-plot
+#+BEGIN_SRC python :return pltfile :results file
+  import numpy as np
+  from matplotlib import pyplot as plt
+  import seaborn as sns
+  from astropy.table import Table
+  from astropy import units as u
+  from astropy.constants import k_B
+  from cloudytab import CloudyModel
+
+  pltfile = f'drift-pratio-small-grains.pdf'
+  sns.set_color_codes("bright")
+
+  F_habing = 1.6e-3
+  light_speed = 2.99792458e10
+  kB = 1.3806503e-16
+  stars = [
+      ["MS40", 22.2, 'Blues_d'],
+      ["MS20", 5.45, 'Oranges_d'],
+      ["MS10", 0.63, 'Purples_d'],
+      ["BSG", 30.2, 'Greens_d']
+  ]
+
+
+  select_grains = "sil-ism01", "sil-ism02", "gra-ism01", "gra-ism02"
+  glabel = {
+      "sil-ism01": "Silicate\n0.006 micron",
+      "sil-ism02": "Silicate\n0.009 micron",
+      "gra-ism01": "Graphite\n0.006 micron",
+      "gra-ism02": "Graphite\n0.009 micron" 
+  }
+  fig, axes = plt.subplots(2, 2, sharex=True, sharey=True, figsize=(10, 5))
+
+  denids = [f"n0{_}" for _ in range(5)]
+
+  for grain, ax in zip(select_grains, axes.flat):
+      for star, L4, cmap in stars:
+          L = 1e4*3.82e33*L4
+          cols = sns.color_palette(cmap, n_colors=len(denids))
+          for denid, col in zip(denids, cols):
+              # Read model 
+              prefix = f"dustrad-{denid}-{star}"
+              m = CloudyModel(f'models/{prefix}')
+
+              Prad = m.data['flux']['F']/light_speed
+              R = m.data['rad']['radius']
+              Prad0 = L / (4*np.pi*light_speed*R**2)
+              hden = m.data['ovr']['hden']
+              eden = m.data['ovr']['eden']
+              Te = m.data['ovr']['Te']
+              Pgas = (hden + eden)*kB*Te
+              Pgas[eden < 0.5*hden] = np.nan
+              Upsilon = Prad0/Pgas
+              Fbol = L / (4*np.pi*m.data['rad']['radius']**2)
+              G_n = m.data['flux']['F_F']/(F_habing*m.data['ovr']['hden'])
+              mm = m.data["gabun"][grain] >= 0.9*m.data["gabun"][grain].max()
+              msub = m.data['gdrift'][grain] < 20.0
+              if denid.endswith("00"):
+                  label = f"{denid} {star}"
+              else:
+                  label = f"{denid}"
+              ax.plot(Upsilon[mm & msub], m.data['gdrift'][grain][mm & msub],
+                      alpha=0.85, lw=0.7, color=col, label=label)
+              ax.plot(Upsilon[mm & ~msub], m.data['gdrift'][grain][mm & ~msub],
+                      alpha=0.85, lw=0.7, color=col, label="_nolabel_")
+      ax.axvline(300,  lw=0.5, ls='--', color='k', alpha=0.5, zorder=0)
+      ax.axvline(3000,  lw=0.5, ls='--', color='k', alpha=0.5, zorder=0)
+      ax.axhline(1.0,  lw=0.5, ls='--', color='k', alpha=0.5, zorder=0)
+      ax.axhline(10.0, lw=0.5, ls='--', color='k', alpha=0.5, zorder=0)
+      ax.set_title(glabel[grain], fontsize="small", pad=-12)
+
+  axes[0, 0].legend(ncol=2, fontsize="xx-small", loc="left")
+  axes[1, 0].set(
+      yscale='log',
+      xscale='log',
+      xlabel=r'Radiation parameter: $\Xi = P_{\mathrm{rad}} / P_{\mathrm{gas}}$',
+      ylabel=r'$w_\mathrm{drift}$, km/s',
+      xlim=[1.0e-2, 4e4],
+  )
+
+  sns.despine()
+  fig.tight_layout()
+  fig.savefig(pltfile)
+
+#+END_SRC
+
+#+RESULTS: drift-pratio-small-grains-plot
+[[file:drift-pratio-small-grains.pdf]]
 
 ** Drift velocity against dust temperature
 #+name: drift-tdust-plot
