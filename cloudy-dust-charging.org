@@ -131,6 +131,20 @@ CLOSED: [2018-03-16 Fri 10:55]
   save grain drift velocity last ".gdrift"
   save grain potential last ".gpot"
   save grain temperature last ".gtemp"
+  save lines, emissivity last ".emis"
+  H  1 6562.81A
+  Ca B 6562.81A
+  N  2 6583.45A
+  O  3 5006.84A
+  IRAC 3.60000m
+  IRAC 4.50000m
+  IRAC 5.80000m
+  IRAC 8.00000m
+  F12  12.0000m
+  F25  25.0000m
+  PAC1 70.0000m
+  PAC3 160.000m
+  end of lines
   """)
 
   for hden in 0.0, 1.0, 2.0, 3.0, 4.0:
@@ -147,6 +161,18 @@ CLOSED: [2018-03-16 Fri 10:55]
 
 #+RESULTS:
 : None
+
+
+
+* TODO Rerun the generic models but saving IR emissivities
++ [2019-02-08 Fri] I want to compare the dust emission with the strange models that Kobulnicky are using, to see how important it is that they are using completely the wrong incident SED
++ This could also explain why K17 (p 13) find higher T than predicted, because they are underestimating UV flux
++ I have added a save lines emissivity command to the output section above, using the built-in bands
++ [X] Unfortunately, I don't have a working cloudy at the moment
+  + Now sorted, but only using gcc
+    #+BEGIN_SRC  sh
+    export D=/Users/will/Work/CLOUDY/cloudy/source/sys_gcc 
+    #+END_SRC    
 
 
 * New Cloudy runs for particular objects
@@ -1958,6 +1984,86 @@ Same but for the smallest grains of all
 
 #+RESULTS: drift-pratio-small-grains-plot
 [[file:drift-pratio-small-grains.pdf]]
+
+** TODO Look at grain emissivity and T versus radiation field
++ This is for comparison with the Kobulnicky papers, where they used Draine models that are meant for the ISRF, not O stars
++ Plan:
+  1. [ ] Look at 70 micron emissivity versus radiation field U
+  2. [ ] Look at grain T vs U (but this will be different for different sizes)
+  3. [ ] Look at flux ratios between bands: 70/24, 24/8, 160/70
+     - For comparison with K17 fig 4 and 5
+
+
+*** Grain temperature versus U
++ We will define U as in K18, as F/F_0
+  + F = L / 4 \pi R^2
+  + F_0 = 0.0217 erg/s/cm^2 from Mathis:03a
+#+name: grain-T-vs-U-plot
+#+BEGIN_SRC python :return pltfile :results file
+  import numpy as np
+  from matplotlib import pyplot as plt
+  import seaborn as sns
+  from astropy.table import Table
+  from astropy import units as u
+  from astropy.constants import k_B
+  from cloudytab import CloudyModel
+
+  pltfile = f'grain-T-vs-U.pdf'
+  sns.set_color_codes("bright")
+  fig, ax = plt.subplots(figsize=(6,4))
+
+  F_habing = 1.6e-3
+  F_mathis = 0.0217
+  light_speed = 2.99792458e10
+  kB = 1.3806503e-16
+  stars = [
+      ["MS10", 0.63, 'Purples_d'   ],
+      ["MS20", 5.45, 'Oranges_d'],
+      ["MS40", 22.2, 'Blues_d'  ],
+      ["BSG", 30.2,  'Greens_d' ]
+  ]
+
+  denids = [f"n0{_}" for _ in range(5)]
+  for star, L4, cmap in stars:
+      L = 1e4*3.82e33*L4
+      cols = sns.color_palette(cmap, n_colors=len(denids))
+      for denid, col in zip(denids, cols):
+          # Read model 
+          prefix = f"dustrad-{denid}-{star}"
+          try:
+              m = CloudyModel(f'models/{prefix}')
+          except:
+              continue
+            
+          Prad = m.data['flux']['F']/light_speed
+          R = m.data['rad']['radius']
+          F = L / (4*np.pi*R**2)
+          U = F / F_mathis
+          hden = m.data['ovr']['hden']
+          eden = m.data['ovr']['eden']
+          Te = m.data['ovr']['Te']
+          Pgas = (hden + eden)*kB*Te
+          Pgas[eden < 0.5*hden] = np.nan
+          for grain in m.data['gtemp'].colnames[1::5]:
+              ax.plot(U, m.data['gtemp'][grain], alpha=0.7, lw=0.5, color=col)
+
+  ax.set(
+      yscale='log',
+      xscale='log',
+      xlabel='U',
+      ylabel=r'Grain Temperature',
+      #xlim=[1.0, 1.e6],
+  )
+
+  sns.despine()
+  fig.tight_layout()
+  fig.savefig(pltfile)
+
+#+END_SRC
+
+#+RESULTS: grain-T-vs-U-plot
+[[file:grain-T-vs-U.pdf]]
+
 
 ** Drift velocity against dust temperature
 #+name: drift-tdust-plot
