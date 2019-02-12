@@ -1,7 +1,7 @@
                                                          Cloudy 13.06.01
                                                          www.nublado.org
 
-                                                  PRNG seed: 0x7567568e3f2bd51d
+                                                  PRNG seed: 0x7233b09ea19b5631
 
                        **************************************13Jun01**************************************
                        *                                                                                 *
@@ -253,7 +253,7 @@ Attention: duplicate reaction H-,Li+=>H,Li -- using new version
                        * IRAC 5.80000m                                                                   *
                        * IRAC 8.00000m                                                                   *
                        * F12  12.0000m                                                                   *
-                       * F25  25.0000m                                                                   *
+                       * MIPS 24.0000m                                                                   *
                        * PAC1 70.0000m                                                                   *
                        * PAC3 160.000m                                                                   *
                        * end of lines                                                                    *
@@ -883,7 +883,7 @@ C  2      2326.93A   32.755    0.0136      S  2      1234.15A   31.829    0.0016
    <a>:4.99E-04  erdeFe8.9E+30  Tcompt6.92E+03  Tthr1.51E+10  <Tden>: 6.63E+03  <dens>:2.33E-21  <MolWgt>6.66E-01
      Mean Jeans  l(cm)9.65E+19  M(sun)5.50E+05  smallest:     len(cm):7.42E+19  M(sun):2.51E+05  a_ox tran: -5.69
  Rion:3.750E+17  Dist:0.00E+00  Diam:0.000E+00
- Hatom level 70  HatomType: add  HInducImp  F  He tot level: 63  He2 level:   70  ExecTime   193.1
+ Hatom level 70  HatomType: add  HInducImp  F  He tot level: 63  He2 level:   70  ExecTime   147.2
  ConvrgError(%)  <eden>  0.055  MaxEden  0.451  <H-C>   0.05  Max(H-C)    0.38  <Press>   0.000  MaxPrs er  0.000
   Continuity(%)  chng Te   2.6  elec den   5.3  n(H2)    0.0  n(CO)        0.0
 
@@ -1139,7 +1139,7 @@ Dust radiative acceleration: star BSG, density 1000.0 pcc
                        * IRAC 5.80000m                                                                   *
                        * IRAC 8.00000m                                                                   *
                        * F12  12.0000m                                                                   *
-                       * F25  25.0000m                                                                   *
+                       * MIPS 24.0000m                                                                   *
                        * PAC1 70.0000m                                                                   *
                        * PAC3 160.000m                                                                   *
                        * end of lines                                                                    *
@@ -1737,7 +1737,7 @@ C  1      1560.68A   31.591    0.0011      P  3      1344.85A   32.890    0.0220
    <a>:4.99E-04  erdeFe8.9E+30  Tcompt6.92E+03  Tthr1.48E+10  <Tden>: 6.64E+03  <dens>:2.33E-21  <MolWgt>6.66E-01
      Mean Jeans  l(cm)9.66E+19  M(sun)5.53E+05  smallest:     len(cm):7.50E+19  M(sun):2.58E+05  a_ox tran: -5.69
  Rion:3.749E+17  Dist:0.00E+00  Diam:0.000E+00
- Hatom level 70  HatomType: add  HInducImp  F  He tot level: 63  He2 level:   70  ExecTime   355.3
+ Hatom level 70  HatomType: add  HInducImp  F  He tot level: 63  He2 level:   70  ExecTime   278.2
  ConvrgError(%)  <eden>  0.052  MaxEden  0.416  <H-C>   0.04  Max(H-C)    0.39  <Press>   0.000  MaxPrs er  0.000
   Continuity(%)  chng Te   2.6  elec den   5.5  n(H2)    0.0  n(CO)        0.0
 
@@ -2263,5 +2263,5 @@ Dust radiative acceleration: star BSG, density 1000.0 pcc
          1 mean step length searches/chemistry step
 ----------------------------------------------------
 
- Cloudy ends: 197 zones, 2 iterations. (single thread) ExecTime(s) 355.35
+ Cloudy ends: 197 zones, 2 iterations. (single thread) ExecTime(s) 278.17
  [Stop in cdMain at ../maincl.cpp:591, Cloudy exited OK]

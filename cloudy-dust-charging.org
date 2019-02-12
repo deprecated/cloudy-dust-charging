@@ -141,7 +141,7 @@ CLOSED: [2018-03-16 Fri 10:55]
   IRAC 5.80000m
   IRAC 8.00000m
   F12  12.0000m
-  F25  25.0000m
+  MIPS 24.0000m
   PAC1 70.0000m
   PAC3 160.000m
   end of lines
@@ -164,7 +164,8 @@ CLOSED: [2018-03-16 Fri 10:55]
 
 
 
-* TODO Rerun the generic models but saving IR emissivities
+* DONE Rerun the generic models but saving IR emissivities
+CLOSED: [2019-02-11 Mon 15:51]
 + [2019-02-08 Fri] I want to compare the dust emission with the strange models that Kobulnicky are using, to see how important it is that they are using completely the wrong incident SED
 + This could also explain why K17 (p 13) find higher T than predicted, because they are underestimating UV flux
 + I have added a save lines emissivity command to the output section above, using the built-in bands
@@ -1985,12 +1986,13 @@ Same but for the smallest grains of all
 #+RESULTS: drift-pratio-small-grains-plot
 [[file:drift-pratio-small-grains.pdf]]
 
-** TODO Look at grain emissivity and T versus radiation field
+** DONE Look at grain emissivity and T versus radiation field
+CLOSED: [2019-02-11 Mon 17:19]
 + This is for comparison with the Kobulnicky papers, where they used Draine models that are meant for the ISRF, not O stars
 + Plan:
-  1. [ ] Look at 70 micron emissivity versus radiation field U
-  2. [ ] Look at grain T vs U (but this will be different for different sizes)
-  3. [ ] Look at flux ratios between bands: 70/24, 24/8, 160/70
+  1. [X] Look at 70 micron emissivity versus radiation field U
+  2. [X] Look at grain T vs U (but this will be different for different sizes)
+  3. [X] Look at flux ratios between bands: 70/24, 24/8, 160/70
      - For comparison with K17 fig 4 and 5
 
 
@@ -2034,7 +2036,7 @@ Same but for the smallest grains of all
               m = CloudyModel(f'models/{prefix}')
           except:
               continue
-            
+
           Prad = m.data['flux']['F']/light_speed
           R = m.data['rad']['radius']
           F = L / (4*np.pi*R**2)
@@ -2043,15 +2045,20 @@ Same but for the smallest grains of all
           eden = m.data['ovr']['eden']
           Te = m.data['ovr']['Te']
           Pgas = (hden + eden)*kB*Te
-          Pgas[eden < 0.5*hden] = np.nan
+          # Drop the zones where gas is neutral
+          U[eden < 0.5*hden] = np.nan
           for grain in m.data['gtemp'].colnames[1::5]:
-              ax.plot(U, m.data['gtemp'][grain], alpha=0.7, lw=0.5, color=col)
+              ls = '--' if grain.startswith('gra') else '-'
+              igrain = int(grain[-2:])
+              ax.plot(U, m.data['gtemp'][grain],
+                      ls=ls,
+                      alpha=0.6 - 0.05*igrain, lw=0.3 + 0.3*igrain, color=col)
 
   ax.set(
       yscale='log',
       xscale='log',
-      xlabel='U',
-      ylabel=r'Grain Temperature',
+      xlabel='Radiation field: $U$',
+      ylabel=r'Grain Temperature, K',
       #xlim=[1.0, 1.e6],
   )
 
@@ -2064,6 +2071,492 @@ Same but for the smallest grains of all
 #+RESULTS: grain-T-vs-U-plot
 [[file:grain-T-vs-U.pdf]]
 
+*** Grain emissivity versus U
++ We divide by number density to put the emissivity as per nucleon
++ Cloudy reports integral across frequency band, so we need to divide by filter width \Delta\nu to put it in per Hz.  From the following table,  \Delta\nu = 1.2491e12 Hz
+  | Band    |   \lambda_1 |   \lambda_2 |        \nu_1 |        \nu_2 |        \Delta\nu |
+  |---------+------+------+-----------+-----------+-----------|
+  | IRAC 8  |  6.5 |  9.3 | 4.6122e13 | 3.2236e13 | 1.3886e13 |
+  | MIPS 24 | 20.8 | 26.1 | 1.4413e13 | 1.1486e13 |  2.927e12 |
+  | F 25    |   19 |   30 | 1.5779e13 | 9.9931e12 | 5.7859e12 |
+  | PAC 70  |   60 |   80 | 4.9965e12 | 3.7474e12 | 1.2491e12 |
+  | PAC 160 |  130 |  198 | 2.3061e12 | 1.5141e12 |   7.92e11 |
+  #+TBLFM: $4=$c / $2 $micron; s5::$5=$c / $3 $micron; s5::$6=$-2 - $-1;s5
++ First, just look at the 70 micron emission
++ Cloudy gives emissivity in erg/cm^3/s
+  + So we need to divide by 4\pi \Delta\nu n 10^-23 to put it in Jy.cm^2/sr/H
+#+name: grain-j70-vs-U-plot
+#+BEGIN_SRC python :return pltfile :results file
+  import numpy as np
+  from matplotlib import pyplot as plt
+  import seaborn as sns
+  from astropy.table import Table
+  from astropy import units as u
+  from astropy.constants import k_B
+  from cloudytab import CloudyModel
+
+  pltfile = f'grain-j70-vs-U.pdf'
+  sns.set_color_codes("bright")
+  fig, ax = plt.subplots(figsize=(6,4))
+
+  F_habing = 1.6e-3
+  F_mathis = 0.0217
+  light_speed = 2.99792458e10
+  kB = 1.3806503e-16
+  bandwidth70 = 1.2491e12 
+  Jy = 1e-23
+  stars = [
+      ["MS10", 0.63, 'Purples_d'   ],
+      ["MS20", 5.45, 'Oranges_d'],
+      ["MS40", 22.2, 'Blues_d'  ],
+      ["BSG", 30.2,  'Greens_d' ]
+  ]
+
+  denids = [f"n0{_}" for _ in range(5)]
+
+  # Data from Draine:2007a
+  DL07tab = Table.read('DL07-data/emissivities.fits')
+
+  for star, L4, cmap in stars:
+      L = 1e4*3.82e33*L4
+      cols = sns.color_palette(cmap, n_colors=len(denids))
+      for denid, col in zip(denids, cols):
+          # Read model 
+          prefix = f"dustrad-{denid}-{star}"
+          try:
+              m = CloudyModel(f'models/{prefix}')
+          except:
+              continue
+
+          Prad = m.data['flux']['F']/light_speed
+          R = m.data['rad']['radius']
+          F = L / (4*np.pi*R**2)
+          U = F / F_mathis
+          hden = m.data['ovr']['hden']
+          eden = m.data['ovr']['eden']
+          Te = m.data['ovr']['Te']
+          Pgas = (hden + eden)*kB*Te
+          U[eden < 0.5*hden] = np.nan
+          j70 = m.data['emis']['PAC1 70.0000m'] / (4*np.pi*hden*bandwidth70*Jy)
+          ax.plot(U, j70, alpha=0.8, lw=1, color=col)
+
+  ax.plot(DL07tab['U'], DL07tab['70'], 'o', alpha=0.5, color='k')
+  ax.plot(DL07tab['U']/8.0, DL07tab['70'], 'o', alpha=0.1, color='k')
+  ax.set(
+      yscale='log',
+      xscale='log',
+      xlabel=r'Radiation field: $U = L_*\, /\, (4 \pi \,R^{2} \, F_{\mathrm{MMP83}})$',
+      ylabel=r'Emissivity at 70 $\mu$m: $j_\nu$   [Jy cm$^{2}$ sr$^{-1}$ H$^{-1}$]',
+      #xlim=[1.0, 1.e6],
+  )
+
+  sns.despine()
+  fig.tight_layout()
+  fig.savefig(pltfile)
+
+#+END_SRC
+
+#+RESULTS: grain-j70-vs-U-plot
+[[file:grain-j70-vs-U.pdf]]
+
+Now look at flux ratios between bands
+
+#+name: grain-jratios-vs-U-plot
+#+BEGIN_SRC python :return pltfile :results file
+  import numpy as np
+  from matplotlib import pyplot as plt
+  import seaborn as sns
+  from astropy.table import Table
+  from astropy import units as u
+  from astropy.constants import k_B
+  from cloudytab import CloudyModel
+
+  pltfile = f'grain-jratios-vs-U.pdf'
+  sns.set_color_codes("bright")
+  fig, axes = plt.subplots(3, 1, sharex=True, figsize=(6,9))
+
+  F_habing = 1.6e-3
+  F_mathis = 0.0217
+  light_speed = 2.99792458e10
+  kB = 1.3806503e-16
+  bandwidth70 = 1.2491e12 
+  Jy = 1e-23
+  stars = [
+      ["MS10", 0.63, 'Purples_d'   ],
+      ["MS20", 5.45, 'Oranges_d'],
+      ["MS40", 22.2, 'Blues_d'  ],
+      ["BSG", 30.2,  'Greens_d' ]
+  ]
+
+  denids = [f"n0{_}" for _ in range(5)]
+
+  dnu8, dnu24, dnu70, dnu160 = 1.3886e13, 2.927e12, 1.2491e12, 7.92e11
+
+  # Data from Draine:2007a
+  DL07tab = Table.read('DL07-data/emissivities.fits')
+
+  for star, L4, cmap in stars:
+      L = 1e4*3.82e33*L4
+      cols = sns.color_palette(cmap, n_colors=len(denids))
+      for denid, col in zip(denids, cols):
+          # Read model 
+          prefix = f"dustrad-{denid}-{star}"
+          try:
+              m = CloudyModel(f'models/{prefix}')
+          except:
+              continue
+
+          Prad = m.data['flux']['F']/light_speed
+          R = m.data['rad']['radius']
+          F = L / (4*np.pi*R**2)
+          U = F / F_mathis
+          hden = m.data['ovr']['hden']
+          eden = m.data['ovr']['eden']
+          Te = m.data['ovr']['Te']
+          Pgas = (hden + eden)*kB*Te
+          U[eden < 0.5*hden] = np.nan
+          r24_8 = m.data['emis']['MIPS 24.0000m'] / m.data['emis']['IRAC 8.00000m'] 
+          r70_24 = m.data['emis']['PAC1 70.0000m'] / m.data['emis']['MIPS 24.0000m']
+          r160_70 = m.data['emis']['PAC3 160.000m'] / m.data['emis']['PAC1 70.0000m']
+          r24_8 *= dnu8/dnu24
+          r70_24 *= dnu24/dnu70
+          r160_70 *= dnu160/dnu70
+          axes[0].plot(U, r24_8, alpha=0.8, lw=1, color=col)
+          axes[1].plot(U, r70_24, alpha=0.8, lw=1, color=col)
+          axes[2].plot(U, r160_70, alpha=0.8, lw=1, color=col)
+
+  axes[0].plot(DL07tab['U'], DL07tab['24']/ DL07tab['8'], 'o', alpha=0.5)
+  axes[1].plot(DL07tab['U'], DL07tab['70']/ DL07tab['24'], 'o', alpha=0.5)
+  axes[2].plot(DL07tab['U'], DL07tab['170']/ DL07tab['70'], 'o', alpha=0.5)
+  #ax.plot(DL07tab['U']*0.1, DL07tab['70'], 'o', alpha=0.1)
+  for ax in axes:
+      ax.set(yscale='log', xscale='log')
+  axes[0].set(
+      ylabel=r'24 / 8',
+  )
+  axes[1].set(
+      ylabel=r'70 / 24',
+  )
+  axes[2].set(
+      xlabel='Radiation field: $U$',
+      ylabel=r'160 / 70',
+  )
+
+  sns.despine()
+  fig.tight_layout()
+  fig.savefig(pltfile)
+
+#+END_SRC
+
+#+RESULTS: grain-jratios-vs-U-plot
+[[file:grain-jratios-vs-U.pdf]]
+
+And now the color-color plots
+
+#+name: grain-color-color-plot
+#+BEGIN_SRC python :return pltfile :results file
+  import numpy as np
+  from matplotlib import pyplot as plt
+  import seaborn as sns
+  from astropy.table import Table
+  from astropy import units as u
+  from astropy.constants import k_B
+  from cloudytab import CloudyModel
+
+  pltfile = f'grain-color-color.pdf'
+  sns.set_color_codes("bright")
+  fig, axes = plt.subplots(2, 1, figsize=(4,8))
+
+  F_habing = 1.6e-3
+  F_mathis = 0.0217
+  light_speed = 2.99792458e10
+  kB = 1.3806503e-16
+  bandwidth70 = 1.2491e12 
+  Jy = 1e-23
+  stars = [
+      ["MS10", 0.63, 'Purples_d'   ],
+      ["MS20", 5.45, 'Oranges_d'],
+      ["MS40", 22.2, 'Blues_d'  ],
+      ["BSG", 30.2,  'Greens_d' ]
+  ]
+
+  denids = [f"n0{_}" for _ in range(5)]
+
+  dnu8, dnu24, dnu70, dnu160 = 1.3886e13, 2.927e12, 1.2491e12, 7.92e11
+
+  # Data from Draine:2007a
+  DL07tab = Table.read('DL07-data/emissivities.fits')
+
+  for star, L4, cmap in stars:
+      L = 1e4*3.82e33*L4
+      cols = sns.color_palette(cmap, n_colors=len(denids))
+      for denid, col in zip(denids, cols):
+          # Read model 
+          prefix = f"dustrad-{denid}-{star}"
+          try:
+              m = CloudyModel(f'models/{prefix}')
+          except:
+              continue
+
+          Prad = m.data['flux']['F']/light_speed
+          R = m.data['rad']['radius']
+          F = L / (4*np.pi*R**2)
+          U = F / F_mathis
+          hden = m.data['ovr']['hden']
+          eden = m.data['ovr']['eden']
+          Te = m.data['ovr']['Te']
+          Pgas = (hden + eden)*kB*Te
+          U[eden < 0.5*hden] = np.nan
+          r24_8 = m.data['emis']['MIPS 24.0000m'] / m.data['emis']['IRAC 8.00000m'] 
+          r70_24 = m.data['emis']['PAC1 70.0000m'] / m.data['emis']['MIPS 24.0000m']
+          r160_70 = m.data['emis']['PAC3 160.000m'] / m.data['emis']['PAC1 70.0000m']
+          r24_8 *= dnu8/dnu24
+          r70_24 *= dnu24/dnu70
+          r160_70 *= dnu160/dnu70
+          axes[0].plot(r24_8, r70_24, alpha=0.8, lw=1, color=col)
+          axes[1].plot(r70_24, r160_70, alpha=0.8, lw=1, color=col)
+
+  axes[0].plot(DL07tab['24']/ DL07tab['8'],  DL07tab['70']/ DL07tab['24'], 'o', alpha=0.5)
+  axes[1].plot(DL07tab['70']/ DL07tab['24'], DL07tab['170']/ DL07tab['70'], 'o', alpha=0.5)
+  #ax.plot(DL07tab['U']*0.1, DL07tab['70'], 'o', alpha=0.1)
+  for ax in axes:
+      ax.set(yscale='log', xscale='log')
+  axes[0].set(
+      xlabel=r'24 / 8',
+      ylabel=r'70 / 24',
+  )
+  axes[1].set(
+      xlabel=r'70 / 24',
+      ylabel=r'160 / 70',
+  )
+
+  sns.despine()
+  fig.tight_layout()
+  fig.savefig(pltfile)
+
+#+END_SRC
+
+#+RESULTS: grain-color-color-plot
+[[file:grain-color-color.pdf]]
+
+*** Collate emissivities from Draine:2007a
+#+name: dl07-emissivities
+#+BEGIN_SRC python :return data 
+  import glob
+
+  folders = glob.glob('DL07-data/U*')
+
+  header = [['U', '8', '24', '70', '110', '170'], None]
+  data = []
+  for folder in folders:
+      _, Ustring = folder.split('U')
+      U = float(Ustring)
+      datafile = f'U{Ustring}_{Ustring}_MW3.1_00.txt'
+      with open(folder + '/' + datafile) as f:
+          lines = f.readlines()
+      j70, j110, j170 = [float(_.split()[2]) for _ in lines if 'PAC' in _]
+      j24, _, _ = [float(_.split()[2]) for _ in lines if 'SST-MIPS' in _]
+      _, _, _, j8 = [float(_.split()[2]) for _ in lines if 'SST-IRAC' in _]
+      data.append([U, j8, j24, j70, j110, j170])
+
+  data.sort(key=lambda x: x[0])
+  data = header + data
+
+#+END_SRC
+
+#+RESULTS: dl07-emissivities
+|        U |         8 |        24 |        70 |       110 |       170 |
+|----------+-----------+-----------+-----------+-----------+-----------|
+|      0.1 | 2.124e-18 | 8.856e-18 | 9.302e-17 | 3.393e-16 | 1.139e-15 |
+|     0.15 | 3.184e-18 | 1.337e-17 | 1.731e-16 | 6.078e-16 | 1.736e-15 |
+|      0.2 | 4.246e-18 | 1.793e-17 | 2.661e-16 | 8.962e-16 | 2.316e-15 |
+|      0.3 | 6.375e-18 | 2.714e-17 | 4.845e-16 | 1.523e-15 | 3.432e-15 |
+|      0.4 | 8.499e-18 | 3.654e-17 | 7.624e-16 | 2.208e-15 | 4.449e-15 |
+|      0.5 | 1.062e-17 | 4.599e-17 | 1.052e-15 | 2.903e-15 | 5.448e-15 |
+|      0.7 | 1.488e-17 | 6.538e-17 | 1.737e-15 | 4.346e-15 | 7.253e-15 |
+|      0.8 | 1.701e-17 | 7.518e-17 | 2.104e-15 | 5.078e-15 | 8.112e-15 |
+|      1.0 | 2.127e-17 | 9.479e-17 | 2.838e-15 | 6.544e-15 |  9.83e-15 |
+|      1.2 | 2.555e-17 | 1.154e-16 |  3.72e-15 | 8.014e-15 | 1.125e-14 |
+|      1.5 | 3.197e-17 | 1.463e-16 | 5.043e-15 | 1.022e-14 | 1.339e-14 |
+|      2.0 | 4.265e-17 | 1.994e-16 | 7.383e-15 | 1.382e-14 | 1.663e-14 |
+|      2.5 |  5.33e-17 | 2.545e-16 | 9.895e-15 | 1.734e-14 | 1.948e-14 |
+|      3.0 | 6.395e-17 | 3.096e-16 | 1.241e-14 | 2.085e-14 | 2.233e-14 |
+|      4.0 | 8.537e-17 | 4.283e-16 | 1.777e-14 | 2.739e-14 | 2.696e-14 |
+|      5.0 | 1.068e-16 | 5.486e-16 |  2.32e-14 | 3.383e-14 | 3.137e-14 |
+|      7.0 | 1.498e-16 | 8.091e-16 | 3.429e-14 | 4.566e-14 | 3.872e-14 |
+|      8.0 | 1.713e-16 | 9.439e-16 | 3.988e-14 | 5.133e-14 | 4.205e-14 |
+|     12.0 |  2.58e-16 | 1.524e-15 | 6.211e-14 | 7.231e-14 | 5.361e-14 |
+|     15.0 | 3.233e-16 |  1.99e-15 | 7.867e-14 | 8.677e-14 | 6.097e-14 |
+|     20.0 | 4.328e-16 |  2.83e-15 | 1.056e-13 |  1.09e-13 |  7.17e-14 |
+|     25.0 | 5.431e-16 |  3.75e-15 | 1.318e-13 | 1.288e-13 | 8.053e-14 |
+|    100.0 | 2.276e-15 |  2.28e-14 | 4.691e-13 | 3.404e-13 | 1.608e-13 |
+|    300.0 |  7.62e-15 | 1.088e-13 | 1.118e-12 | 6.544e-13 | 2.562e-13 |
+|   1000.0 | 3.299e-14 | 6.326e-13 | 2.606e-12 | 1.239e-12 | 4.081e-13 |
+|   3000.0 | 1.433e-13 | 3.124e-12 | 5.127e-12 | 2.068e-12 | 5.974e-13 |
+|  10000.0 | 7.118e-13 | 1.585e-11 | 1.004e-11 | 3.467e-12 | 8.887e-13 |
+|  30000.0 | 3.018e-12 | 6.033e-11 | 1.736e-11 | 5.323e-12 | 1.249e-12 |
+| 100000.0 | 1.663e-11 |  2.14e-10 | 3.021e-11 | 8.324e-12 | 1.803e-12 |
+| 300000.0 | 9.378e-11 | 5.503e-10 | 4.696e-11 | 1.202e-11 | 2.463e-12 |
+
+
+Write the above table to FITS format
+#+BEGIN_SRC python :var TAB=dl07-emissivities :colnames no :return tab
+  from astropy.table import Table
+  tab = Table(rows=TAB[1:], names=TAB[0])
+  tab.write('DL07-data/emissivities.fits', overwrite=True)
+#+END_SRC
+
+#+RESULTS:
+#+begin_example
+U         8         24        70       110       170   
+-------- --------- --------- --------- --------- ---------
+     0.1 2.124e-18 8.856e-18 9.302e-17 3.393e-16 1.139e-15
+    0.15 3.184e-18 1.337e-17 1.731e-16 6.078e-16 1.736e-15
+     0.2 4.246e-18 1.793e-17 2.661e-16 8.962e-16 2.316e-15
+     0.3 6.375e-18 2.714e-17 4.845e-16 1.523e-15 3.432e-15
+     0.4 8.499e-18 3.654e-17 7.624e-16 2.208e-15 4.449e-15
+     0.5 1.062e-17 4.599e-17 1.052e-15 2.903e-15 5.448e-15
+     0.7 1.488e-17 6.538e-17 1.737e-15 4.346e-15 7.253e-15
+     0.8 1.701e-17 7.518e-17 2.104e-15 5.078e-15 8.112e-15
+     1.0 2.127e-17 9.479e-17 2.838e-15 6.544e-15  9.83e-15
+     1.2 2.555e-17 1.154e-16  3.72e-15 8.014e-15 1.125e-14
+     ...       ...       ...       ...       ...       ...
+    15.0 3.233e-16  1.99e-15 7.867e-14 8.677e-14 6.097e-14
+    20.0 4.328e-16  2.83e-15 1.056e-13  1.09e-13  7.17e-14
+    25.0 5.431e-16  3.75e-15 1.318e-13 1.288e-13 8.053e-14
+   100.0 2.276e-15  2.28e-14 4.691e-13 3.404e-13 1.608e-13
+   300.0  7.62e-15 1.088e-13 1.118e-12 6.544e-13 2.562e-13
+  1000.0 3.299e-14 6.326e-13 2.606e-12 1.239e-12 4.081e-13
+  3000.0 1.433e-13 3.124e-12 5.127e-12 2.068e-12 5.974e-13
+ 10000.0 7.118e-13 1.585e-11 1.004e-11 3.467e-12 8.887e-13
+ 30000.0 3.018e-12 6.033e-11 1.736e-11 5.323e-12 1.249e-12
+100000.0 1.663e-11  2.14e-10 3.021e-11 8.324e-12 1.803e-12
+300000.0 9.378e-11 5.503e-10 4.696e-11 1.202e-11 2.463e-12
+Length = 30 rows
+#+end_example
+
+** TODO Compare SED between OB stars and interstellar field 
++ ISRF SED is given in Appendix C of Mezger:1982a
++ OB star SEDs come from Cloudy models
+
+
+#+name: mmp83-sed-tab
+|    8 | 4.33e-5 |
+|   10 | 3.26e-5 |
+|   12 | 2.21e-5 |
+|   20 | 7.13e-6 |
+|   25 | 1.14e-5 |
+|   30 | 1.70e-5 |
+|   40 | 3.06e-5 |
+|   50 | 4.08e-5 |
+|   60 | 4.76e-5 |
+|   70 | 4.51e-5 |
+|   80 | 4.20e-5 |
+|   90 | 3.62e-5 |
+|  100 | 3.16e-5 |
+|  150 | 1.36e-5 |
+|  200 | 5.61e-6 |
+|  300 | 1.39e-6 |
+|  400 | 5.61e-7 |
+|  600 | 1.32e-7 |
+|  800 | 4.20e-8 |
+| 1000 | 2.14e-8 |
+
+#+header: :var TAB=mmp83-sed-tab
+#+BEGIN_SRC python :return pltfile :results file
+  import numpy as np
+  from matplotlib import pyplot as plt
+  import seaborn as sns
+
+  from astropy.modeling.blackbody import blackbody_lambda
+  from astropy import units as u
+  from astropy.table import Table
+
+  from cloudytab import CloudyModel
+
+
+  def BB(wav, T):
+      """Blackbody taking care of unit conversions
+
+      Input units: `wav` should be in micron, `T` should be in Kelvin
+      Output units: erg / (cm2 micron s sr)
+
+      """
+      return blackbody_lambda(
+          wav*u.micron, T*u.K).to(
+              u.erg/(u.micron*u.s*u.cm**2*u.sr))
+
+
+  def mmp1983sed(wav):
+      """Spectral Energy Distribution for interstellar radiation field
+
+      Appendix C of Mezger et al.  1982 with corrections from Appendix A
+      of Mathis et al.  1983 and additions from App B of same
+
+      """
+      wav = np.atleast_1d(wav)
+      rslt = np.empty_like(wav)
+      # Masks for wavelength ranges
+      m1 = wav < 0.0912
+      m2 = (wav >= 0.0912) & (wav < 0.110)
+      m3 = (wav >= 0.110) & (wav < 0.134)
+      m4 = (wav >= 0.134) & (wav < 0.246)
+      m5 = (wav >= 0.246) & (wav < 8.0)
+      m6 = wav >= 7.2
+
+      # Piecewise functional forms for 4 pi J_lambda 
+      rslt[m1] = 0.0
+      rslt[m2] = 38.57*wav[m2]**3.4172
+      rslt[m3] = 2.045e-2
+      rslt[m4] = 7.115e-4*wav[m4]**-1.6678
+      rslt[m5] = 4*np.pi*(
+          1.00e-14*BB(wav[m5], 7500) +
+          1.00e-13*BB(wav[m5], 4000) + 
+          4.00e-13*BB(wav[m5], 3000)
+      )
+
+      # Multiply <8 mic part by wav to get SED
+      rslt[~m6] *= wav[~m6]
+      # While for > 8 mic part, we interpolate on the log SED not the F_lam
+      wtab, ftab = np.hsplit(np.array(TAB).astype('float'), 2)
+      logwav, logf = np.log10(wtab.ravel()), np.log10(ftab.ravel())
+      rslt[m6] = 10**np.interp(np.log10(wav[m6]), logwav, logwav + logf)
+
+      # Return the SED: lambda F_lambda
+      return rslt
+
+
+  pltfile = f'sed-comparison.pdf'
+  fig, ax = plt.subplots(figsize=(6, 3))
+
+  star = "MS20"
+  prefix = f"dustrad-n00-{star}"
+  m = CloudyModel(f'models/{prefix}')
+  nu = m.data['cont']['Cont  nu']
+  nuFnu_inc = m.data['cont']['incident'] 
+  wav = 0.0912/nu
+
+  dilution = 1.0/(4*np.pi*u.pc.to(u.cm)**2)
+  ax.plot(wav, dilution*nuFnu_inc, label="O9.5V star @ 1 pc")
+  ax.plot(wav, 100*mmp1983sed(wav), label=r"IS radiation $\times 100$")
+  vmax = dilution*nuFnu_inc.max()
+  ax.legend()
+  ax.set(
+      xlim=[0.01, 1000.],
+      ylim=[1e-5*vmax, 2.*vmax],
+      yscale='log',
+      xscale='log',
+      xlabel='Wavelength, micron',
+      ylabel=r'$\lambda F_{\lambda}$, erg/s/cm$^2$',
+  )
+  sns.despine()
+  fig.tight_layout()
+  fig.savefig(pltfile)
+
+#+END_SRC
+
+#+RESULTS:
+[[file:sed-comparison.pdf]]
 
 ** Drift velocity against dust temperature
 #+name: drift-tdust-plot
