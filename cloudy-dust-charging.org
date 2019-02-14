@@ -2538,7 +2538,7 @@ Length = 30 rows
 
   dilution = 1.0/(4*np.pi*u.pc.to(u.cm)**2)
   ax.plot(wav, dilution*nuFnu_inc, label="O9.5V star @ 1 pc")
-  ax.plot(wav, 100*mmp1983sed(wav), label=r"IS radiation $\times 100$")
+  ax.plot(wav, 80*mmp1983sed(wav), label=r"IS radiation $\times 80$")
   vmax = dilution*nuFnu_inc.max()
   ax.legend()
   ax.set(
@@ -2557,6 +2557,9 @@ Length = 30 rows
 
 #+RESULTS:
 [[file:sed-comparison.pdf]]
+
+
+
 
 ** Drift velocity against dust temperature
 #+name: drift-tdust-plot
