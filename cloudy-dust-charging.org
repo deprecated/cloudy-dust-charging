@@ -2159,6 +2159,80 @@ CLOSED: [2019-02-11 Mon 17:19]
 #+RESULTS: grain-j70-vs-U-plot
 [[file:grain-j70-vs-U.pdf]]
 
+#+name: grain-j24-vs-U-plot
+#+BEGIN_SRC python :return pltfile :results file
+  import numpy as np
+  from matplotlib import pyplot as plt
+  import seaborn as sns
+  from astropy.table import Table
+  from astropy import units as u
+  from astropy.constants import k_B
+  from cloudytab import CloudyModel
+
+  pltfile = f'grain-j24-vs-U.pdf'
+  sns.set_color_codes("bright")
+  fig, ax = plt.subplots(figsize=(6,4))
+
+  F_habing = 1.6e-3
+  F_mathis = 0.0217
+  light_speed = 2.99792458e10
+  kB = 1.3806503e-16
+  bandwidth70 = 1.2491e12 
+  Jy = 1e-23
+  stars = [
+      ["MS10", 0.63, 'Purples_d'   ],
+      ["MS20", 5.45, 'Oranges_d'],
+      ["MS40", 22.2, 'Blues_d'  ],
+      ["BSG", 30.2,  'Greens_d' ]
+  ]
+
+  denids = [f"n0{_}" for _ in range(5)]
+
+  # Data from Draine:2007a
+  DL07tab = Table.read('DL07-data/emissivities.fits')
+
+  for star, L4, cmap in stars:
+      L = 1e4*3.82e33*L4
+      cols = sns.color_palette(cmap, n_colors=len(denids))
+      for denid, col in zip(denids, cols):
+          # Read model 
+          prefix = f"dustrad-{denid}-{star}"
+          try:
+              m = CloudyModel(f'models/{prefix}')
+          except:
+              continue
+
+          Prad = m.data['flux']['F']/light_speed
+          R = m.data['rad']['radius']
+          F = L / (4*np.pi*R**2)
+          U = F / F_mathis
+          hden = m.data['ovr']['hden']
+          eden = m.data['ovr']['eden']
+          Te = m.data['ovr']['Te']
+          Pgas = (hden + eden)*kB*Te
+          U[eden < 0.5*hden] = np.nan
+          j70 = m.data['emis']['MIPS 24.0000m'] / (4*np.pi*hden*bandwidth70*Jy)
+          ax.plot(U, j70, alpha=0.8, lw=1, color=col)
+
+  ax.plot(DL07tab['U'], DL07tab['24'], 'o', alpha=0.5, color='k')
+  ax.plot(DL07tab['U']/8.0, DL07tab['24'], 'o', alpha=0.1, color='k')
+  ax.set(
+      yscale='log',
+      xscale='log',
+      xlabel=r'Radiation field: $U = L_*\, /\, (4 \pi \,R^{2} \, F_{\mathrm{MMP83}})$',
+      ylabel=r'Emissivity at 24 $\mu$m: $j_\nu$   [Jy cm$^{2}$ sr$^{-1}$ H$^{-1}$]',
+      #xlim=[1.0, 1.e6],
+  )
+
+  sns.despine()
+  fig.tight_layout()
+  fig.savefig(pltfile)
+
+#+END_SRC
+
+#+RESULTS: grain-j24-vs-U-plot
+[[file:grain-j24-vs-U.pdf]]
+
 Now look at flux ratios between bands
 
 #+name: grain-jratios-vs-U-plot
@@ -2225,9 +2299,9 @@ Now look at flux ratios between bands
           axes[1].plot(U, r70_24, alpha=0.8, lw=1, color=col)
           axes[2].plot(U, r160_70, alpha=0.8, lw=1, color=col)
 
-  axes[0].plot(DL07tab['U'], DL07tab['24']/ DL07tab['8'], 'o', alpha=0.5)
-  axes[1].plot(DL07tab['U'], DL07tab['70']/ DL07tab['24'], 'o', alpha=0.5)
-  axes[2].plot(DL07tab['U'], DL07tab['170']/ DL07tab['70'], 'o', alpha=0.5)
+  axes[0].plot(DL07tab['U']/8, DL07tab['24']/ DL07tab['8'], 'o', alpha=0.5)
+  axes[1].plot(DL07tab['U']/8, DL07tab['70']/ DL07tab['24'], 'o', alpha=0.5)
+  axes[2].plot(DL07tab['U']/8, DL07tab['170']/ DL07tab['70'], 'o', alpha=0.5)
   #ax.plot(DL07tab['U']*0.1, DL07tab['70'], 'o', alpha=0.1)
   for ax in axes:
       ax.set(yscale='log', xscale='log')
