@@ -1187,7 +1187,7 @@ And a few more, slightly higher density
 
 #+name: phi-vs-ipar
 #+header: :var STAR="MS10" GRAIN="sil-orion01"
-#+BEGIN_SRC python :return figfile :results file
+#+BEGIN_SRC python :return figfile :results file :exports both
   import glob
   from matplotlib import pyplot as plt
   import seaborn as sns
@@ -1258,7 +1258,7 @@ And a few more, slightly higher density
 
 #+name: phi-vs-ipar-allgrain
 #+header: :var STAR="MS10" 
-#+BEGIN_SRC python :return figfile :results file
+#+BEGIN_SRC python :return figfile :results file :exports both
   import glob
   from matplotlib import pyplot as plt
   import seaborn as sns
@@ -1347,7 +1347,7 @@ And a few more, slightly higher density
 
 #+name: tau-plot
 #+header: :var DENID="n00"
-#+BEGIN_SRC python :return pltfile :results file
+#+BEGIN_SRC python :return pltfile :results file :exports both
   import numpy as np
   from matplotlib import pyplot as plt
   import seaborn as sns
@@ -1475,7 +1475,7 @@ This works OK, but it has the disadvantage that it ignores the dust extinction i
 
 #+name: fluxes-plot
 #+header: :var PREFIX="n00-MS10"
-#+BEGIN_SRC python :return pltfile :results file
+#+BEGIN_SRC python :return pltfile :results file :exports both
   import numpy as np
   from matplotlib import pyplot as plt
   import seaborn as sns
@@ -1534,7 +1534,7 @@ This works OK, but it has the disadvantage that it ignores the dust extinction i
 Check ion fraction versus F(EUV)/n
 
 #+name: ion-param-plot
-#+BEGIN_SRC python :return pltfile :results file
+#+BEGIN_SRC python :return pltfile :results file :exports both
   import numpy as np
   from matplotlib import pyplot as plt
   import seaborn as sns
@@ -1595,7 +1595,7 @@ Check ion fraction versus F(EUV)/n
 
 
 #+name: drift-pratio-plot
-#+BEGIN_SRC python :return pltfile :results file
+#+BEGIN_SRC python :return pltfile :results file :exports both
   import numpy as np
   from matplotlib import pyplot as plt
   import seaborn as sns
@@ -1656,7 +1656,7 @@ Check ion fraction versus F(EUV)/n
 [[file:drift-pratio.pdf]]
 
 #+name: phi-pratio-plot
-#+BEGIN_SRC python :return pltfile :results file
+#+BEGIN_SRC python :return pltfile :results file :exports both
   import numpy as np
   from matplotlib import pyplot as plt
   import seaborn as sns
@@ -1727,7 +1727,7 @@ Check ion fraction versus F(EUV)/n
 
 
 #+name: drift-gn-plot
-#+BEGIN_SRC python :return pltfile :results file
+#+BEGIN_SRC python :return pltfile :results file :exports both
   import numpy as np
   from matplotlib import pyplot as plt
   import seaborn as sns
@@ -1812,7 +1812,7 @@ Check ion fraction versus F(EUV)/n
 [[file:drift-gn.pdf]]
 
 #+name: drift-pratio-4panel-plot
-#+BEGIN_SRC python :return pltfile :results file
+#+BEGIN_SRC python :return pltfile :results file :exports both
   import numpy as np
   from matplotlib import pyplot as plt
   import seaborn as sns
@@ -1903,7 +1903,7 @@ Check ion fraction versus F(EUV)/n
 Same but for the smallest grains of all
 
 #+name: drift-pratio-small-grains-plot
-#+BEGIN_SRC python :return pltfile :results file
+#+BEGIN_SRC python :return pltfile :results file :exports both
   import numpy as np
   from matplotlib import pyplot as plt
   import seaborn as sns
@@ -2006,7 +2006,7 @@ CLOSED: [2019-02-11 Mon 17:19]
   + F = L / 4 \pi R^2
   + F_0 = 0.0217 erg/s/cm^2 from Mathis:03a
 #+name: grain-T-vs-U-plot
-#+BEGIN_SRC python :return pltfile :results file
+#+BEGIN_SRC python :return pltfile :results file :exports both
   import numpy as np
   from matplotlib import pyplot as plt
   import seaborn as sns
@@ -2091,7 +2091,7 @@ CLOSED: [2019-02-11 Mon 17:19]
 + Cloudy gives emissivity in erg/cm^3/s
   + So we need to divide by 4\pi \Delta\nu n 10^-23 to put it in Jy.cm^2/sr/H
 #+name: grain-j70-vs-U-plot
-#+BEGIN_SRC python :return pltfile :results file
+#+BEGIN_SRC python :return pltfile :results file :exports both
   import numpy as np
   from matplotlib import pyplot as plt
   import seaborn as sns
@@ -2165,7 +2165,7 @@ CLOSED: [2019-02-11 Mon 17:19]
 [[file:grain-j70-vs-U.pdf]]
 
 #+name: grain-j24-vs-U-plot
-#+BEGIN_SRC python :return pltfile :results file
+#+BEGIN_SRC python :return pltfile :results file :exports both
   import numpy as np
   from matplotlib import pyplot as plt
   import seaborn as sns
@@ -2241,7 +2241,7 @@ CLOSED: [2019-02-11 Mon 17:19]
 Now look at flux ratios between bands
 
 #+name: grain-jratios-vs-U-plot
-#+BEGIN_SRC python :return pltfile :results file
+#+BEGIN_SRC python :return pltfile :results file :exports both
   import numpy as np
   from matplotlib import pyplot as plt
   import seaborn as sns
@@ -2333,7 +2333,7 @@ Now look at flux ratios between bands
 And now the color-color plots
 
 #+name: grain-color-color-plot
-#+BEGIN_SRC python :return pltfile :results file
+#+BEGIN_SRC python :return pltfile :results file :exports both
   import numpy as np
   from matplotlib import pyplot as plt
   import seaborn as sns
@@ -2542,7 +2542,7 @@ Length = 30 rows
 | 1000 | 2.14e-8 |
 
 #+header: :var TAB=mmp83-sed-tab
-#+BEGIN_SRC python :return pltfile :results file
+#+BEGIN_SRC python :return pltfile :results file :exports both
   import numpy as np
   from matplotlib import pyplot as plt
   import seaborn as sns
@@ -2642,7 +2642,7 @@ Length = 30 rows
 
 ** Drift velocity against dust temperature
 #+name: drift-tdust-plot
-#+BEGIN_SRC python :return pltfile :results file
+#+BEGIN_SRC python :return pltfile :results file :exports both
   import numpy as np
   from matplotlib import pyplot as plt
   import seaborn as sns
@@ -2702,7 +2702,7 @@ Length = 30 rows
 
 ** Drift velocity against hydrogen ionization
 #+name: drift-xH-plot
-#+BEGIN_SRC python :return pltfile :results file
+#+BEGIN_SRC python :return pltfile :results file :exports both
   import numpy as np
   from matplotlib import pyplot as plt
   import seaborn as sns
