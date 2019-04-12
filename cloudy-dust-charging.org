@@ -20,6 +20,8 @@ CLOSED: [2018-03-16 Fri 10:55]
   1. Python script to write multiple input, run with ~make -j 8~
   2. Work out how to use Cloudy grid command (need to install MPI?)
 + Do it
+  + Decided on approach 1
+  + Python script to write the Cloudy input files is in [[id:E7E0D121-820E-470E-B39A-BDC77800E7FC][Expand template for input files]] below
 
 
 
@@ -69,6 +71,9 @@ CLOSED: [2018-03-16 Fri 10:55]
     + For instance, for 10 Msun model we have S_49 = 0.00028, which is twice what I have in my table
 
 * Expand template for input files
+:PROPERTIES:
+:ID:       E7E0D121-820E-470E-B39A-BDC77800E7FC
+:END:
 #+BEGIN_SRC python
   from textwrap import dedent
   import numpy as np
@@ -166,7 +171,7 @@ CLOSED: [2018-03-16 Fri 10:55]
 
 * DONE Rerun the generic models but saving IR emissivities
 CLOSED: [2019-02-11 Mon 15:51]
-+ [2019-02-08 Fri] I want to compare the dust emission with the strange models that Kobulnicky are using, to see how important it is that they are using completely the wrong incident SED
++ [2019-02-08 Fri] I want to compare the dust emission with the models that Kobulnicky are using, to see how important it is that they are using the wrong incident SED
 + This could also explain why K17 (p 13) find higher T than predicted, because they are underestimating UV flux
 + I have added a save lines emissivity command to the output section above, using the built-in bands
 + [X] Unfortunately, I don't have a working cloudy at the moment
@@ -2012,7 +2017,7 @@ CLOSED: [2019-02-11 Mon 17:19]
 
   pltfile = f'grain-T-vs-U.pdf'
   sns.set_color_codes("bright")
-  fig, ax = plt.subplots(figsize=(6,4))
+  fig, ax = plt.subplots(figsize=(4,4))
 
   F_habing = 1.6e-3
   F_mathis = 0.0217
@@ -2057,7 +2062,7 @@ CLOSED: [2019-02-11 Mon 17:19]
   ax.set(
       yscale='log',
       xscale='log',
-      xlabel='Radiation field: $U$',
+      xlabel=r'Radiation field: $U = L_*\, /\, (4 \pi \,R^{2} \, c \, u_{\mathrm{MMP83}})$',
       ylabel=r'Grain Temperature, K',
       #xlim=[1.0, 1.e6],
   )
@@ -2097,7 +2102,7 @@ CLOSED: [2019-02-11 Mon 17:19]
 
   pltfile = f'grain-j70-vs-U.pdf'
   sns.set_color_codes("bright")
-  fig, ax = plt.subplots(figsize=(6,4))
+  fig, ax = plt.subplots(figsize=(4,4))
 
   F_habing = 1.6e-3
   F_mathis = 0.0217
@@ -2141,11 +2146,11 @@ CLOSED: [2019-02-11 Mon 17:19]
           ax.plot(U, j70, alpha=0.8, lw=1, color=col)
 
   ax.plot(DL07tab['U'], DL07tab['70'], 'o', alpha=0.5, color='k')
-  ax.plot(DL07tab['U']/8.0, DL07tab['70'], 'o', alpha=0.1, color='k')
+  ax.plot(DL07tab['U']/8.0, DL07tab['70'], 'o', alpha=0.2, color='k')
   ax.set(
       yscale='log',
       xscale='log',
-      xlabel=r'Radiation field: $U = L_*\, /\, (4 \pi \,R^{2} \, F_{\mathrm{MMP83}})$',
+      xlabel=r'Radiation field: $U = L_*\, /\, (4 \pi \,R^{2} \, c \, u_{\mathrm{MMP83}})$',
       ylabel=r'Emissivity at 70 $\mu$m: $j_\nu$   [Jy cm$^{2}$ sr$^{-1}$ H$^{-1}$]',
       #xlim=[1.0, 1.e6],
   )
