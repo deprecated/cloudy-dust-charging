@@ -1,0 +1,46 @@
+title Dust radiative acceleration: star MS20, density 1.0 pcc
+set save prefix "dustrad-n00-MS20"
+# MS20 star
+# T_eff = 33900 K, L = 5.45e+04 L_sun, log(g) = 4.20
+table star tlusty OBstar 3-dim 33900 4.2 0.0
+luminosity total 38.32
+hden 0.00 # density of 1.0 pcc
+# Start close in: 0.03014 pc
+radius 16.96852797641153
+# Go into PDR a bit
+stop temperature 4000 K linear
+iterate
+sphere
+grains ism function sublimation no qheat
+grains PAH no qheat
+set PAH constant
+abundances HII region no grains
+cosmic ray background
+cmb
+table ism 
+# save all the output we want
+save overview last ".ovr"
+save physical conditions last ".phys"
+save continuum last ".cont"
+# save continuum last every ".zcont"
+save radius last ".rad"
+save grain abundance last ".gabun"
+save grain charge last ".gcharge"
+save grain continuum last ".gcont"
+save grain drift velocity last ".gdrift"
+save grain potential last ".gpot"
+save grain temperature last ".gtemp"
+save lines, emissivity last ".emis"
+H  1 6562.81A
+Ca B 6562.81A
+N  2 6583.45A
+O  3 5006.84A
+IRAC 3.60000m
+IRAC 4.50000m
+IRAC 5.80000m
+IRAC 8.00000m
+F12  12.0000m
+MIPS 24.0000m
+PAC1 70.0000m
+PAC3 160.000m
+end of lines

@@ -1,0 +1,44 @@
+title Dust radiative acceleration: star BSG, density 10.0 pcc
+set save prefix "dustrad-n01-BSG"
+# BSG star
+# T_eff = 23500 K, L = 3.02e+05 L_sun, log(g) = 3.40
+table star tlusty OBstar 3-dim 23500 3.4 0.0
+luminosity total 39.06
+hden 1.00 # density of 10.0 pcc
+# Start close in: 0.02244 pc
+radius 16.840333196751786
+# Go into PDR a bit
+stop temperature 4000 K linear
+iterate
+sphere
+grains ism function sublimation no qheat
+abundances HII region no grains
+cosmic ray background
+cmb
+table ism 
+# save all the output we want
+save overview last ".ovr"
+save physical conditions last ".phys"
+save continuum last ".cont"
+# save continuum last every ".zcont"
+save radius last ".rad"
+save grain abundance last ".gabun"
+save grain charge last ".gcharge"
+save grain continuum last ".gcont"
+save grain drift velocity last ".gdrift"
+save grain potential last ".gpot"
+save grain temperature last ".gtemp"
+save lines, emissivity last ".emis"
+H  1 6562.81A
+Ca B 6562.81A
+N  2 6583.45A
+O  3 5006.84A
+IRAC 3.60000m
+IRAC 4.50000m
+IRAC 5.80000m
+IRAC 8.00000m
+F12  12.0000m
+MIPS 24.0000m
+PAC1 70.0000m
+PAC3 160.000m
+end of lines

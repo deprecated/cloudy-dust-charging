@@ -181,6 +181,383 @@ CLOSED: [2019-02-11 Mon 15:51]
     #+END_SRC    
 
 
+* TODO [2/3] Try models without stochastic heating
++ [2019-04-13 Sat] I want to see how much difference this really makes at 24 micron
+  + Aigen Li says that 24 micron should be dominated by (stochastic heating) reported by Chip Kobulnicky
+  + But that contradicts what I say in sec 4.1.1 of Paper III
+
+
+** DONE Copy the generic models and turn off qheat
+CLOSED: [2019-04-13 Sat 19:05]
++ Put everything in new folder [[file:models-no-qheat/]]
+#+BEGIN_SRC python :results silent
+  import glob
+
+  infiles = glob.glob("models/dustrad*.in")
+
+  for infile in infiles:
+      with open(infile) as f:
+          s = f.read()
+      # Change the grains command to turn off quantum heating
+      s = s.replace(
+          "grains ism function sublimation",
+          "grains ism function sublimation no qheat",
+      )
+      with open(infile.replace("models/", "models-no-qheat/"), "w") as f:
+          f.write(s)
+#+END_SRC
+
+#+BEGIN_SRC sh :results verbatim :exports both
+ls -l models-no-qheat/*.in
+#+END_SRC
+
+#+RESULTS:
+#+begin_example
+-rw-r--r--  1 will  staff  1105 Apr 13 18:55 models-no-qheat/dustrad-n00-BSG.in
+-rw-r--r--  1 will  staff  1094 Apr 13 18:55 models-no-qheat/dustrad-n00-MS10.in
+-rw-r--r--  1 will  staff  1107 Apr 13 18:55 models-no-qheat/dustrad-n00-MS20.in
+-rw-r--r--  1 will  staff  1107 Apr 13 18:55 models-no-qheat/dustrad-n00-MS40.in
+-rw-r--r--  1 will  staff  1107 Apr 13 18:55 models-no-qheat/dustrad-n01-BSG.in
+-rw-r--r--  1 will  staff  1096 Apr 13 18:55 models-no-qheat/dustrad-n01-MS10.in
+-rw-r--r--  1 will  staff  1109 Apr 13 18:55 models-no-qheat/dustrad-n01-MS20.in
+-rw-r--r--  1 will  staff  1109 Apr 13 18:55 models-no-qheat/dustrad-n01-MS40.in
+-rw-r--r--  1 will  staff  1109 Apr 13 18:55 models-no-qheat/dustrad-n02-BSG.in
+-rw-r--r--  1 will  staff  1098 Apr 13 18:55 models-no-qheat/dustrad-n02-MS10.in
+-rw-r--r--  1 will  staff  1112 Apr 13 18:55 models-no-qheat/dustrad-n02-MS20.in
+-rw-r--r--  1 will  staff  1111 Apr 13 18:55 models-no-qheat/dustrad-n02-MS40.in
+-rw-r--r--  1 will  staff  1111 Apr 13 18:55 models-no-qheat/dustrad-n03-BSG.in
+-rw-r--r--  1 will  staff  1100 Apr 13 18:55 models-no-qheat/dustrad-n03-MS10.in
+-rw-r--r--  1 will  staff  1114 Apr 13 18:55 models-no-qheat/dustrad-n03-MS20.in
+-rw-r--r--  1 will  staff  1114 Apr 13 18:55 models-no-qheat/dustrad-n03-MS40.in
+-rw-r--r--  1 will  staff  1113 Apr 13 18:55 models-no-qheat/dustrad-n04-BSG.in
+-rw-r--r--  1 will  staff  1102 Apr 13 18:55 models-no-qheat/dustrad-n04-MS10.in
+-rw-r--r--  1 will  staff  1116 Apr 13 18:55 models-no-qheat/dustrad-n04-MS20.in
+-rw-r--r--  1 will  staff  1116 Apr 13 18:55 models-no-qheat/dustrad-n04-MS40.in
+#+end_example
+
+** Do the same for models with added PAH grains
++ Folders [[file:models-pah/]] and [[file:models-pah-no-qheat/]]
+#+BEGIN_SRC python :results silent
+  import glob
+
+  infiles = glob.glob("models/dustrad*.in")
+
+  for infile in infiles:
+      with open(infile) as f:
+          s = f.read()
+
+      # Add in PAH grains with constant abundance
+      s = s.replace(
+          "grains ism function sublimation",
+          "\n".join(["grains ism function sublimation",
+                     "grains PAH",
+                     "set PAH constant"]))
+      with open(infile.replace("models/", "models-pah/"), "w") as f:
+          f.write(s)
+
+      # Change both grains commands to turn off quantum heating
+      for grain_cmd in "grains ism function sublimation", "grains PAH":
+          s = s.replace(grain_cmd, grain_cmd + " no qheat")
+      with open(infile.replace("models/", "models-pah-no-qheat/"), "w") as f:
+          f.write(s)
+#+END_SRC
+
+** DONE Run the no-qheat models
+CLOSED: [2019-04-13 Sat 22:59]
+#+BEGIN_SRC sh :eval no
+cd models-no-qheat
+export D=~/Work/CLOUDY/cloudy/source/sys_gcc
+make -j6
+#+END_SRC
+
+** Comparative timings
++ The models with ~no qheat~ are noticeably faster, but less than twice as fast
++ Average speedup factor = 7694.88/4502.76 = 1.71
+#+BEGIN_SRC sh :results table
+grep 'ExecTime(s)' models-no-qheat/dustrad*.out |cut -f 1,11 -d' '
+#+END_SRC
+
+#+RESULTS:
+|---------------------------------------+---------|
+| models-no-qheat/dustrad-n00-BSG.out:  |  160.74 |
+| models-no-qheat/dustrad-n00-MS10.out: |  165.55 |
+| models-no-qheat/dustrad-n00-MS20.out: |  227.74 |
+| models-no-qheat/dustrad-n00-MS40.out: |  274.11 |
+| models-no-qheat/dustrad-n01-BSG.out:  |  158.15 |
+| models-no-qheat/dustrad-n01-MS10.out: |   161.9 |
+| models-no-qheat/dustrad-n01-MS20.out: |   270.1 |
+| models-no-qheat/dustrad-n01-MS40.out: |  311.88 |
+| models-no-qheat/dustrad-n02-BSG.out:  |  199.27 |
+| models-no-qheat/dustrad-n02-MS10.out: |  205.32 |
+| models-no-qheat/dustrad-n02-MS20.out: |  279.47 |
+| models-no-qheat/dustrad-n02-MS40.out: |  309.77 |
+| models-no-qheat/dustrad-n03-BSG.out:  |   188.6 |
+| models-no-qheat/dustrad-n03-MS10.out: |   195.7 |
+| models-no-qheat/dustrad-n03-MS20.out: |  268.22 |
+| models-no-qheat/dustrad-n03-MS40.out: |  282.97 |
+| models-no-qheat/dustrad-n04-BSG.out:  |  193.87 |
+| models-no-qheat/dustrad-n04-MS10.out: |  190.01 |
+| models-no-qheat/dustrad-n04-MS20.out: |  223.46 |
+| models-no-qheat/dustrad-n04-MS40.out: |  235.93 |
+|---------------------------------------+---------|
+|                                       | 4502.76 |
+#+TBLFM: @21$2=vsum(@I..@II)
+
+#+BEGIN_SRC sh :results table
+grep 'ExecTime(s)' models/dustrad*.out |cut -f 1,11 -d' '
+#+END_SRC
+
+#+RESULTS:
+|------------------------------+---------|
+| models/dustrad-n00-BSG.out:  |  236.17 |
+| models/dustrad-n00-MS10.out: |  249.66 |
+| models/dustrad-n00-MS20.out: |  353.36 |
+| models/dustrad-n00-MS40.out: |   440.9 |
+| models/dustrad-n01-BSG.out:  |  226.82 |
+| models/dustrad-n01-MS10.out: |  234.51 |
+| models/dustrad-n01-MS20.out: |  384.26 |
+| models/dustrad-n01-MS40.out: |  465.55 |
+| models/dustrad-n02-BSG.out:  |  265.22 |
+| models/dustrad-n02-MS10.out: |  275.79 |
+| models/dustrad-n02-MS20.out: |  405.35 |
+| models/dustrad-n02-MS40.out: |   523.9 |
+| models/dustrad-n03-BSG.out:  |  278.17 |
+| models/dustrad-n03-MS10.out: |   288.9 |
+| models/dustrad-n03-MS20.out: |  455.45 |
+| models/dustrad-n03-MS40.out: |  551.47 |
+| models/dustrad-n04-BSG.out:  |   274.5 |
+| models/dustrad-n04-MS10.out: |  284.98 |
+| models/dustrad-n04-MS20.out: |  448.18 |
+| models/dustrad-n04-MS40.out: | 1051.74 |
+|------------------------------+---------|
+|                              | 7694.88 |
+#+TBLFM: @21$2=vsum(@I..@II)
+
+
+
+
+** TODO Look at the 70 and 24 micron emissivity
++ Compare with the models with qheat off and on
++ I did this originally in [[id:EDB6BD6B-0BBE-4EDF-B781-416487E6801C][Grain emissivity versus U]] below
+  + These are based on the programs there, but dropping the comparison with DL07
++ First I do 70 micron
+  + No-qheat models are shown with dashed lines
+  + Very slight differences for U < 1, but otherwise identical
+  + Not a surprise
+
+#+name: no-qheat-j70-vs-U-plot
+#+BEGIN_SRC python :return pltfile :results file :exports both
+  import numpy as np
+  from matplotlib import pyplot as plt
+  import seaborn as sns
+  from astropy.table import Table
+  from astropy import units as u
+  from astropy.constants import k_B
+  from cloudytab import CloudyModel
+
+  pltfile = f'no-qheat-j70-vs-U.pdf'
+  sns.set_color_codes("bright")
+  fig, ax = plt.subplots(figsize=(4,4))
+
+  F_habing = 1.6e-3
+  F_mathis = 0.0217
+  light_speed = 2.99792458e10
+  kB = 1.3806503e-16
+  bandwidth70 = 1.2491e12 
+  Jy = 1e-23
+  stars = [
+      ["MS10", 0.63, 'Purples_d'   ],
+      ["MS20", 5.45, 'Oranges_d'],
+      ["MS40", 22.2, 'Blues_d'  ],
+      ["BSG", 30.2,  'Greens_d' ]
+  ]
+
+  denids = [f"n0{_}" for _ in range(5)]
+
+  for star, L4, cmap in stars:
+      L = 1e4*3.82e33*L4
+      cols = sns.color_palette(cmap, n_colors=len(denids))
+      for denid, col in zip(denids, cols):
+          # Read model 
+          prefix = f"dustrad-{denid}-{star}"
+          try:
+              mqh = CloudyModel(f'models-pah/{prefix}')
+              mnoqh = CloudyModel(f'models-pah-no-qheat/{prefix}')
+          except:
+              continue
+
+          for m, ls in [mqh, '-'], [mnoqh, '--']:
+              R = m.data['rad']['radius']
+              F = L / (4*np.pi*R**2)
+              U = F / F_mathis
+              hden = m.data['ovr']['hden']
+              eden = m.data['ovr']['eden']
+              Te = m.data['ovr']['Te']
+              Pgas = (hden + eden)*kB*Te
+              U[eden < 0.5*hden] = np.nan
+              j70 = m.data['emis']['PAC1 70.0000m'] / (4*np.pi*hden*bandwidth70*Jy)
+              ax.plot(U, j70, alpha=0.8, ls=ls, lw=1, color=col)
+
+  ax.set(
+      yscale='log',
+      xscale='log',
+      xlabel=r'Radiation field: $U = L_*\, /\, (4 \pi \,R^{2} \, c \, u_{\mathrm{MMP83}})$',
+      ylabel=r'Emissivity at 70 $\mu$m: $j_\nu$   [Jy cm$^{2}$ sr$^{-1}$ H$^{-1}$]',
+      #xlim=[1.0, 1.e6],
+  )
+
+  sns.despine()
+  fig.tight_layout()
+  fig.savefig(pltfile)
+
+#+END_SRC
+
+#+RESULTS: no-qheat-j70-vs-U-plot
+[[file:no-qheat-j70-vs-U.pdf]]
+
+
+#+name: no-qheat-j24-vs-U-plot
+#+BEGIN_SRC python :return pltfile :results file :exports both
+  import numpy as np
+  from matplotlib import pyplot as plt
+  import seaborn as sns
+  from astropy.table import Table
+  from astropy import units as u
+  from astropy.constants import k_B
+  from cloudytab import CloudyModel
+
+  pltfile = f'no-qheat-j24-vs-U.pdf'
+  sns.set_color_codes("bright")
+  fig, ax = plt.subplots(figsize=(4,4))
+
+  F_habing = 1.6e-3
+  F_mathis = 0.0217
+  light_speed = 2.99792458e10
+  kB = 1.3806503e-16
+  bandwidth24 = 2.927e12
+  Jy = 1e-23
+  stars = [
+      ["MS10", 0.63, 'Purples_d'   ],
+      ["MS20", 5.45, 'Oranges_d'],
+      ["MS40", 22.2, 'Blues_d'  ],
+      ["BSG", 30.2,  'Greens_d' ]
+  ]
+
+  denids = [f"n0{_}" for _ in range(5)]
+
+  for star, L4, cmap in stars:
+      L = 1e4*3.82e33*L4
+      cols = sns.color_palette(cmap, n_colors=len(denids))
+      for denid, col in zip(denids, cols):
+          # Read model 
+          prefix = f"dustrad-{denid}-{star}"
+          try:
+              mqh = CloudyModel(f'models-pah/{prefix}')
+              mnoqh = CloudyModel(f'models-pah-no-qheat/{prefix}')
+          except:
+              continue
+
+          for m, ls in [mqh, '-'], [mnoqh, '--']:
+              R = m.data['rad']['radius']
+              F = L / (4*np.pi*R**2)
+              U = F / F_mathis
+              hden = m.data['ovr']['hden']
+              eden = m.data['ovr']['eden']
+              Te = m.data['ovr']['Te']
+              Pgas = (hden + eden)*kB*Te
+              U[eden < 0.5*hden] = np.nan
+              j24 = m.data['emis']['MIPS 24.0000m'] / (4*np.pi*hden*bandwidth24*Jy)
+              ax.plot(U, j24, alpha=0.8, ls=ls, lw=1, color=col)
+
+  ax.set(
+      yscale='log',
+      xscale='log',
+      xlabel=r'Radiation field: $U = L_*\, /\, (4 \pi \,R^{2} \, c \, u_{\mathrm{MMP83}})$',
+      ylabel=r'Emissivity at 24 $\mu$m: $j_\nu$   [Jy cm$^{2}$ sr$^{-1}$ H$^{-1}$]',
+      #xlim=[1.0, 1.e6],
+  )
+
+  sns.despine()
+  fig.tight_layout()
+  fig.savefig(pltfile)
+
+#+END_SRC
+
+#+RESULTS: no-qheat-j24-vs-U-plot
+[[file:no-qheat-j24-vs-U.pdf]]
+
+
+#+name: no-qheat-j8-vs-U-plot
+#+BEGIN_SRC python :return pltfile :results file :exports both
+  import numpy as np
+  from matplotlib import pyplot as plt
+  import seaborn as sns
+  from astropy.table import Table
+  from astropy import units as u
+  from astropy.constants import k_B
+  from cloudytab import CloudyModel
+
+  pltfile = f'no-qheat-j8-vs-U.pdf'
+  sns.set_color_codes("bright")
+  fig, ax = plt.subplots(figsize=(4,4))
+
+  F_habing = 1.6e-3
+  F_mathis = 0.0217
+  light_speed = 2.99792458e10
+  kB = 1.3806503e-16
+  bandwidth8 = 1.3886e13 
+  Jy = 1e-23
+  stars = [
+      ["MS10", 0.63, 'Purples_d'   ],
+      ["MS20", 5.45, 'Oranges_d'],
+      ["MS40", 22.2, 'Blues_d'  ],
+      ["BSG", 30.2,  'Greens_d' ]
+  ]
+
+  denids = [f"n0{_}" for _ in range(5)]
+
+  for star, L4, cmap in stars:
+      L = 1e4*3.82e33*L4
+      cols = sns.color_palette(cmap, n_colors=len(denids))
+      for denid, col in zip(denids, cols):
+          # Read model 
+          prefix = f"dustrad-{denid}-{star}"
+          try:
+              mqh = CloudyModel(f'models-pah/{prefix}')
+              mnoqh = CloudyModel(f'models-pah-no-qheat/{prefix}')
+          except:
+              continue
+
+          for m, ls in [mqh, '-'], [mnoqh, '--']:
+              R = m.data['rad']['radius']
+              F = L / (4*np.pi*R**2)
+              U = F / F_mathis
+              hden = m.data['ovr']['hden']
+              eden = m.data['ovr']['eden']
+              Te = m.data['ovr']['Te']
+              Pgas = (hden + eden)*kB*Te
+              U[eden < 0.5*hden] = np.nan
+              j8 = m.data['emis']['IRAC 8.00000m'] / (4*np.pi*hden*bandwidth8*Jy)
+              ax.plot(U, j8, alpha=0.8, ls=ls, lw=1, color=col)
+
+  ax.set(
+      yscale='log',
+      xscale='log',
+      xlabel=r'Radiation field: $U = L_*\, /\, (4 \pi \,R^{2} \, c \, u_{\mathrm{MMP83}})$',
+      ylabel=r'Emissivity at 8 $\mu$m: $j_\nu$   [Jy cm$^{2}$ sr$^{-1}$ H$^{-1}$]',
+      #xlim=[1.0, 1.e6],
+  )
+
+  sns.despine()
+  fig.tight_layout()
+  fig.savefig(pltfile)
+
+#+END_SRC
+
+#+RESULTS: no-qheat-j8-vs-U-plot
+[[file:no-qheat-j8-vs-U.pdf]]
+
+
 * New Cloudy runs for particular objects
 + [2018-11-04 Sun] Try and reproduce the SEDs of the potential bow wave candidates
 + See 
@@ -2077,6 +2454,9 @@ CLOSED: [2019-02-11 Mon 17:19]
 [[file:grain-T-vs-U.pdf]]
 
 *** Grain emissivity versus U
+:PROPERTIES:
+:ID:       EDB6BD6B-0BBE-4EDF-B781-416487E6801C
+:END:
 + We divide by number density to put the emissivity as per nucleon
 + Cloudy reports integral across frequency band, so we need to divide by filter width \Delta\nu to put it in per Hz.  From the following table,  \Delta\nu = 1.2491e12 Hz
   | Band    |   \lambda_1 |   \lambda_2 |        \nu_1 |        \nu_2 |        \Delta\nu |
@@ -2176,13 +2556,13 @@ CLOSED: [2019-02-11 Mon 17:19]
 
   pltfile = f'grain-j24-vs-U.pdf'
   sns.set_color_codes("bright")
-  fig, ax = plt.subplots(figsize=(6,4))
+  fig, ax = plt.subplots(figsize=(4,4))
 
   F_habing = 1.6e-3
   F_mathis = 0.0217
   light_speed = 2.99792458e10
   kB = 1.3806503e-16
-  bandwidth70 = 1.2491e12 
+  bandwidth24 = 2.927e12
   Jy = 1e-23
   stars = [
       ["MS10", 0.63, 'Purples_d'   ],
@@ -2203,11 +2583,10 @@ CLOSED: [2019-02-11 Mon 17:19]
           # Read model 
           prefix = f"dustrad-{denid}-{star}"
           try:
-              m = CloudyModel(f'models/{prefix}')
+              m = CloudyModel(f'models-pah/{prefix}')
           except:
               continue
 
-          Prad = m.data['flux']['F']/light_speed
           R = m.data['rad']['radius']
           F = L / (4*np.pi*R**2)
           U = F / F_mathis
@@ -2216,15 +2595,15 @@ CLOSED: [2019-02-11 Mon 17:19]
           Te = m.data['ovr']['Te']
           Pgas = (hden + eden)*kB*Te
           U[eden < 0.5*hden] = np.nan
-          j70 = m.data['emis']['MIPS 24.0000m'] / (4*np.pi*hden*bandwidth70*Jy)
-          ax.plot(U, j70, alpha=0.8, lw=1, color=col)
+          j24 = m.data['emis']['MIPS 24.0000m'] / (4*np.pi*hden*bandwidth24*Jy)
+          ax.plot(U, j24, alpha=0.8, lw=1, color=col)
 
   ax.plot(DL07tab['U'], DL07tab['24'], 'o', alpha=0.5, color='k')
   ax.plot(DL07tab['U']/8.0, DL07tab['24'], 'o', alpha=0.1, color='k')
   ax.set(
       yscale='log',
       xscale='log',
-      xlabel=r'Radiation field: $U = L_*\, /\, (4 \pi \,R^{2} \, F_{\mathrm{MMP83}})$',
+      xlabel=r'Radiation field: $U = L_*\, /\, (4 \pi \,R^{2} \, c \, u_{\mathrm{MMP83}})$',
       ylabel=r'Emissivity at 24 $\mu$m: $j_\nu$   [Jy cm$^{2}$ sr$^{-1}$ H$^{-1}$]',
       #xlim=[1.0, 1.e6],
   )
