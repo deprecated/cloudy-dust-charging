@@ -15,13 +15,13 @@ CLOSED: [2018-03-16 Fri 10:55]
   #+END_SRC
 
 
-* TODO Production runs
-+ [X] Decide which approach to use?
-  1. Python script to write multiple input, run with ~make -j 8~
-  2. Work out how to use Cloudy grid command (need to install MPI?)
-+ Do it
-  + Decided on approach 1
-  + Python script to write the Cloudy input files is in [[id:E7E0D121-820E-470E-B39A-BDC77800E7FC][Expand template for input files]] below
+* Production runs
+1. [X] Decide which approach to use?
+   1. Python script to write multiple input, run with ~make -j 8~
+   2. Work out how to use Cloudy grid command (need to install MPI?)
+2. Do it
+   + Decided on approach 1
+   + Python script to write the Cloudy input files is in [[id:E7E0D121-820E-470E-B39A-BDC77800E7FC][Expand template for input files]] below
 
 
 
@@ -181,11 +181,15 @@ CLOSED: [2019-02-11 Mon 15:51]
     #+END_SRC    
 
 
-* TODO [2/3] Try models without stochastic heating
+* DONE [0/0] Try models without stochastic heating
+CLOSED: [2019-04-15 Mon 18:40]
 + [2019-04-13 Sat] I want to see how much difference this really makes at 24 micron
   + Aigen Li says that 24 micron should be dominated by (stochastic heating) reported by Chip Kobulnicky
   + But that contradicts what I say in sec 4.1.1 of Paper III
-
++ *Conclusions*
+  + Even if we allow PAHs to exist in the bows, then stochastic heating makes a neglible contribution to the 24 micron emission for U > 100, which covers nearly all the observed bows. This is assuming q_PAH = 0.47%, which is the lowest in the DL07 models
+  + For the 8 micron emission, stochastic heating dominates unless  U > 10^4.  Again, assuming q_PAH = 0.47%
+    + Note that some bows do have U > 10^4.  Most notably \theta^1 D Ori has U = 5e6
 
 ** DONE Copy the generic models and turn off qheat
 CLOSED: [2019-04-13 Sat 19:05]
@@ -336,10 +340,13 @@ grep 'ExecTime(s)' models/dustrad*.out |cut -f 1,11 -d' '
 
 
 
-** TODO Look at the 70 and 24 micron emissivity
+** DONE Look at the 70 and 24 micron emissivity
+CLOSED: [2019-04-14 Sun 23:00]
 + Compare with the models with qheat off and on
 + I did this originally in [[id:EDB6BD6B-0BBE-4EDF-B781-416487E6801C][Grain emissivity versus U]] below
-  + These are based on the programs there, but dropping the comparison with DL07
+  + These are based on the programs there
++ Summary combination figure
+  [[file:j8-24-70-no-qheat-combo.jpg]]
 + First I do 70 micron
   + No-qheat models are shown with dashed lines
   + Very slight differences for U < 1, but otherwise identical
@@ -374,6 +381,9 @@ grep 'ExecTime(s)' models/dustrad*.out |cut -f 1,11 -d' '
 
   denids = [f"n0{_}" for _ in range(5)]
 
+  # Data from Draine:2007a
+  DL07tab = Table.read('DL07-data/emissivities.fits')
+
   for star, L4, cmap in stars:
       L = 1e4*3.82e33*L4
       cols = sns.color_palette(cmap, n_colors=len(denids))
@@ -398,6 +408,7 @@ grep 'ExecTime(s)' models/dustrad*.out |cut -f 1,11 -d' '
               j70 = m.data['emis']['PAC1 70.0000m'] / (4*np.pi*hden*bandwidth70*Jy)
               ax.plot(U, j70, alpha=0.8, ls=ls, lw=1, color=col)
 
+  ax.plot(DL07tab['U']/8.0, DL07tab['70'], '.', alpha=0.5, color='r')
   ax.set(
       yscale='log',
       xscale='log',
@@ -445,6 +456,9 @@ grep 'ExecTime(s)' models/dustrad*.out |cut -f 1,11 -d' '
 
   denids = [f"n0{_}" for _ in range(5)]
 
+  # Data from Draine:2007a
+  DL07tab = Table.read('DL07-data/emissivities.fits')
+
   for star, L4, cmap in stars:
       L = 1e4*3.82e33*L4
       cols = sns.color_palette(cmap, n_colors=len(denids))
@@ -469,6 +483,7 @@ grep 'ExecTime(s)' models/dustrad*.out |cut -f 1,11 -d' '
               j24 = m.data['emis']['MIPS 24.0000m'] / (4*np.pi*hden*bandwidth24*Jy)
               ax.plot(U, j24, alpha=0.8, ls=ls, lw=1, color=col)
 
+  ax.plot(DL07tab['U']/8.0, DL07tab['24'], '.', alpha=0.5, color='r')
   ax.set(
       yscale='log',
       xscale='log',
@@ -516,6 +531,9 @@ grep 'ExecTime(s)' models/dustrad*.out |cut -f 1,11 -d' '
 
   denids = [f"n0{_}" for _ in range(5)]
 
+  # Data from Draine:2007a
+  DL07tab = Table.read('DL07-data/emissivities.fits')
+
   for star, L4, cmap in stars:
       L = 1e4*3.82e33*L4
       cols = sns.color_palette(cmap, n_colors=len(denids))
@@ -540,6 +558,8 @@ grep 'ExecTime(s)' models/dustrad*.out |cut -f 1,11 -d' '
               j8 = m.data['emis']['IRAC 8.00000m'] / (4*np.pi*hden*bandwidth8*Jy)
               ax.plot(U, j8, alpha=0.8, ls=ls, lw=1, color=col)
 
+  #ax.plot(DL07tab['U'], DL07tab['8'], '.', alpha=0.5, color='k')
+  ax.plot(DL07tab['U']/8.0, DL07tab['8'], '.', alpha=0.5, color='r')
   ax.set(
       yscale='log',
       xscale='log',
@@ -557,6 +577,54 @@ grep 'ExecTime(s)' models/dustrad*.out |cut -f 1,11 -d' '
 #+RESULTS: no-qheat-j8-vs-U-plot
 [[file:no-qheat-j8-vs-U.pdf]]
 
+
+*** Different regimes of Planck function for j_70
++ At fixed wavelength, emissivity is proportional to B_\nu(T)
++ B_\nu has peak at 5.879e10 (T/K) Hz => \lambda = (5100 / T) \micro{}m
+  + Note that this is 1.7 times longer wavelength than the peak in B_\lambda
++ So Planck peak is at 70 \micro{}m when T = 5100/70 = 72.9 K
+  + From Fig 3 of Paper III, this is when U ~ 1e3
+
+
+** Comparison between PAH model in Cloudy and in DL07
++ Default Cloudy PAH grains is in 10 size bins
+  + Described in Abel:2008a sec 3.1.3
+  + Abundance goes as a^-3.5
+  + From 30 to 500 carbon atoms
+    + That is about 0.4 to 1.0 nm
+  + Total carbon atom abundance in PAHs is n_C/n_H = 3e-6
++ Note that Cloudy ISM grain mixture has smallest bin that starts at 5 nm
+  + Therefore there are no grains from 1 to 5 nm
+  + This is going to be important at 24 micron because From Fig 14 of Draine:2001a, it is the biggest PAH molecules that emit most there (e.g., the C_4000 H_1000 grain in the figure)
+  + Also, Fig 6 of DL07 shows that for \lambda > 12 \micro{}m it is grains with a > 10 \AA = 1 nm that dominate the emission
++ PAH grains in DL07
+  + We are using the ~MW3.1_00~ models, which have q_PAH = 0.47%
+    + See [[file:DL07-data/README.txt]]
+    + q_PAH is "the fraction of the total dust mass that is contributed by PAH particles containing < 1000 C atoms"
++ Try and find equivalent q_PAH for Cloudy models
+  + graphite grains
+    + [[file:~/Work/CLOUDY/cloudy/data/graphite_ism_10.opc][graphite_ism_10.opc]]
+    + Material density 2.26 g/cm^3
+    + Total grain volume 2.456864e-27 cm^3/H
+    + Atomic weight of Carbon: 12.01078 amu
+    + => Carbon abundance in grains = 2.26 2.456864e-27 / 12.01078 amu = 2.784e-4
+    + Cross-check: this should be the same as "depletion efficiency" times "abundance of grain molecule at max depletion"
+      + 4.800000e-04 5.800000e-01 = 2.784e-4 /Exactly the same/
+    + I was going to compare that with the PAH carbon abundance n_C/n_H = 3e-6 from above, but I realised I need to add in silicates too
+    + It would actually be asier to just stick with masses
+  + PAH grains
+    + [[file:~/Work/CLOUDY/cloudy/data/pah1_ab08_10.opc][pah1_ab08_10.opc]]
+    + Density: 1.80 g/cm^3
+    + Total volume: 3.300793e-29 cm^3/H
+  + Silicate grains
+    + [[file:~/Work/CLOUDY/cloudy/data/silicate_ism_10.opc][silicate_ism_10.opc]]
+    + Density: 3.30 g/cm^3
+    + Total volume: 2.842704e-27 cm^3/H
+  + PAH mass fraction
+    + q_PAH = m(PAH) / (m(PAH) + m(graphite) + m(silicate))
+    + 1.80 3.300793e-29 / (1.80 3.300793e-29 + 2.26 2.456864e-27 + 3.30 2.842704e-27)
+    + => q_PAH = 3.96284052387e-3 = 0.40%
+    + This is similar to DL07 value, but slightly smaller
 
 * New Cloudy runs for particular objects
 + [2018-11-04 Sun] Try and reproduce the SEDs of the potential bow wave candidates
@@ -2616,6 +2684,80 @@ CLOSED: [2019-02-11 Mon 17:19]
 
 #+RESULTS: grain-j24-vs-U-plot
 [[file:grain-j24-vs-U.pdf]]
+
+#+name: grain-j8-vs-U-plot
+#+BEGIN_SRC python :return pltfile :results file :exports both
+  import numpy as np
+  from matplotlib import pyplot as plt
+  import seaborn as sns
+  from astropy.table import Table
+  from astropy import units as u
+  from astropy.constants import k_B
+  from cloudytab import CloudyModel
+
+  pltfile = f'grain-j8-vs-U.pdf'
+  sns.set_color_codes("bright")
+  fig, ax = plt.subplots(figsize=(4,4))
+
+  F_habing = 1.6e-3
+  F_mathis = 0.0217
+  light_speed = 2.99792458e10
+  kB = 1.3806503e-16
+  bandwidth8 = 1.3886e13 
+  Jy = 1e-23
+  stars = [
+      ["MS10", 0.63, 'Purples_d'   ],
+      ["MS20", 5.45, 'Oranges_d'],
+      ["MS40", 22.2, 'Blues_d'  ],
+      ["BSG", 30.2,  'Greens_d' ]
+  ]
+
+  denids = [f"n0{_}" for _ in range(5)]
+
+  # Data from Draine:2007a
+  DL07tab = Table.read('DL07-data/emissivities.fits')
+
+  for star, L4, cmap in stars:
+      L = 1e4*3.82e33*L4
+      cols = sns.color_palette(cmap, n_colors=len(denids))
+      for denid, col in zip(denids, cols):
+          # Read model 
+          prefix = f"dustrad-{denid}-{star}"
+          try:
+              m = CloudyModel(f'models-pah/{prefix}')
+          except:
+              continue
+
+          R = m.data['rad']['radius']
+          F = L / (4*np.pi*R**2)
+          U = F / F_mathis
+          hden = m.data['ovr']['hden']
+          eden = m.data['ovr']['eden']
+          Te = m.data['ovr']['Te']
+          Pgas = (hden + eden)*kB*Te
+          U[eden < 0.5*hden] = np.nan
+          j8 = m.data['emis']['IRAC 8.00000m'] / (4*np.pi*hden*bandwidth8*Jy)
+          ax.plot(U, j8, alpha=0.8, lw=1, color=col)
+
+  ax.plot(DL07tab['U'], DL07tab['8'], 'o', alpha=0.5, color='k')
+  ax.plot(DL07tab['U']/8.0, DL07tab['8'], 'o', alpha=0.1, color='k')
+  ax.set(
+      yscale='log',
+      xscale='log',
+      xlabel=r'Radiation field: $U = L_*\, /\, (4 \pi \,R^{2} \, c \, u_{\mathrm{MMP83}})$',
+      ylabel=r'Emissivity at 8 $\mu$m: $j_\nu$   [Jy cm$^{2}$ sr$^{-1}$ H$^{-1}$]',
+      #xlim=[1.0, 1.e6],
+  )
+
+  sns.despine()
+  fig.tight_layout()
+  fig.savefig(pltfile)
+
+#+END_SRC
+
+#+RESULTS: grain-j8-vs-U-plot
+[[file:grain-j8-vs-U.pdf]]
+
 
 Now look at flux ratios between bands
 
