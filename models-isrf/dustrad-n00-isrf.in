@@ -1,0 +1,43 @@
+title Dust radiative acceleration: star isrf, density 1.0 pcc
+set save prefix "dustrad-n00-isrf"
+# MMP83 interstellar radiation field, L = 1.00e+06 Lsun
+table sed "isrf_mmp1983.sed"
+luminosity 39.58 range 0.0114 1.0
+hden 0.00 # density of 1.0 pcc
+# Start close in: 0.121 pc
+radius 17.572135915610176
+stop radius 21.069134141910535
+# We stop on radius, so make sure not on T
+stop temperature 4 K linear
+iterate
+sphere
+grains ism function sublimation
+abundances HII region no grains
+cosmic ray background
+cmb
+# save all the output we want
+save overview last ".ovr"
+save physical conditions last ".phys"
+save continuum last ".cont"
+# save continuum last every ".zcont"
+save radius last ".rad"
+save grain abundance last ".gabun"
+save grain charge last ".gcharge"
+save grain continuum last ".gcont"
+save grain drift velocity last ".gdrift"
+save grain potential last ".gpot"
+save grain temperature last ".gtemp"
+save lines, emissivity last ".emis"
+H  1 6562.81A
+Ca B 6562.81A
+N  2 6583.45A
+O  3 5006.84A
+IRAC 3.60000m
+IRAC 4.50000m
+IRAC 5.80000m
+IRAC 8.00000m
+F12  12.0000m
+MIPS 24.0000m
+PAC1 70.0000m
+PAC3 160.000m
+end of lines

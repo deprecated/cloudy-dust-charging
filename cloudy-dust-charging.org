@@ -626,6 +626,104 @@ CLOSED: [2019-04-14 Sun 23:00]
     + => q_PAH = 3.96284052387e-3 = 0.40%
     + This is similar to DL07 value, but slightly smaller
 
+
+
+* Cloudy models with the interstellar radiation field
+:PROPERTIES:
+:ID:       DB79C401-5967-46B1-B0B0-0AAB3F4C9B4A
+:END:
++ [2019-04-15 Mon] Suggested by Chip Kobulnicky
++ Adapt the stellar models [[id:E7E0D121-820E-470E-B39A-BDC77800E7FC][above]] but using ~table ism extinguish~
++ Luminosity is set to 1e6 Lsun in range 0.0114 \to 1.0 Rydberg, which is 912 \AA to 8 \micro{}m
++ This means that ionization parameter is 14700 / R^2 with R in pc
+  + So to cover U = 0.1 \to 1e6, we need R = 0.121 \to 380 pc
+
+#+BEGIN_SRC python
+  from textwrap import dedent
+  import numpy as np
+
+  LSUN = 3.82e33
+
+  def isrf_input(L4=100.0):
+      s = f"# MMP83 interstellar radiation field, L = {1e4*L4:.2e} Lsun" + "\n"
+      s += f"table sed \"isrf_mmp1983.sed\"" + "\n"
+      s += f"luminosity {np.log10(LSUN*1e4*L4):.2f} range 0.0114 1.0" + "\n"
+      return s
+
+  def hden_input(hden):
+      return f"hden {hden:.2f} # density of {10**hden} pcc" + "\n"
+
+  def file_stem(hden, id_):
+      return f"dustrad-n{int(hden):02d}-{id_}" 
+
+  def intro_input(hden, id_):
+      s = f"title Dust radiative acceleration: star {id_}, density {10**hden} pcc" + "\n"
+      s += f"set save prefix \"{file_stem(hden, id_)}\"" + "\n"
+      return s
+
+  def radius_input(L4, hden):
+      # Scale R_in to give U = 1e9
+      R_in_pc = 0.121
+      R_out_pc = 380.0
+      s = f"# Start close in: {R_in_pc:.3f} pc" + "\n"
+      s += f"radius {np.log10(3.085677582e18*R_in_pc)}" + "\n"
+      s += f"stop radius {np.log10(3.085677582e18*R_out_pc)}" + "\n"
+      return s
+
+
+  outro_input = dedent("""\
+  # We stop on radius, so make sure not on T
+  stop temperature 4 K linear
+  iterate
+  sphere
+  grains ism function sublimation
+  abundances HII region no grains
+  cosmic ray background
+  cmb
+  # save all the output we want
+  save overview last ".ovr"
+  save physical conditions last ".phys"
+  save continuum last ".cont"
+  # save continuum last every ".zcont"
+  save radius last ".rad"
+  save grain abundance last ".gabun"
+  save grain charge last ".gcharge"
+  save grain continuum last ".gcont"
+  save grain drift velocity last ".gdrift"
+  save grain potential last ".gpot"
+  save grain temperature last ".gtemp"
+  save lines, emissivity last ".emis"
+  H  1 6562.81A
+  Ca B 6562.81A
+  N  2 6583.45A
+  O  3 5006.84A
+  IRAC 3.60000m
+  IRAC 4.50000m
+  IRAC 5.80000m
+  IRAC 8.00000m
+  F12  12.0000m
+  MIPS 24.0000m
+  PAC1 70.0000m
+  PAC3 160.000m
+  end of lines
+  """)
+
+  id_ = "isrf"
+  for hden in [0.0]:
+      for L4 in [100.0]:
+          cloudy_input = (intro_input(hden, id_)
+                          + isrf_input(L4)
+                          + hden_input(hden)
+                          + radius_input(L4, hden)
+                          + outro_input)
+          file_name = f"models-isrf/{file_stem(hden, id_)}.in"
+          with open(file_name, "w") as f:
+              f.write(cloudy_input)
+#+END_SRC
+
+#+RESULTS:
+: None
+
 * New Cloudy runs for particular objects
 + [2018-11-04 Sun] Try and reproduce the SEDs of the potential bow wave candidates
 + See 
@@ -2526,15 +2624,19 @@ CLOSED: [2019-02-11 Mon 17:19]
 :ID:       EDB6BD6B-0BBE-4EDF-B781-416487E6801C
 :END:
 + We divide by number density to put the emissivity as per nucleon
-+ Cloudy reports integral across frequency band, so we need to divide by filter width \Delta\nu to put it in per Hz.  From the following table,  \Delta\nu = 1.2491e12 Hz
++ Cloudy reports integral across frequency band, so we need to divide by filter width \Delta\nu to put it in per Hz.  From the following table,  \Delta\nu = 1.3405e12 Hz
   | Band    |   \lambda_1 |   \lambda_2 |        \nu_1 |        \nu_2 |        \Delta\nu |
   |---------+------+------+-----------+-----------+-----------|
   | IRAC 8  |  6.5 |  9.3 | 4.6122e13 | 3.2236e13 | 1.3886e13 |
   | MIPS 24 | 20.8 | 26.1 | 1.4413e13 | 1.1486e13 |  2.927e12 |
   | F 25    |   19 |   30 | 1.5779e13 | 9.9931e12 | 5.7859e12 |
-  | PAC 70  |   60 |   80 | 4.9965e12 | 3.7474e12 | 1.2491e12 |
+  | PAC 70  |   60 |   82 | 4.9965e12 | 3.6560e12 | 1.3405e12 |
   | PAC 160 |  130 |  198 | 2.3061e12 | 1.5141e12 |   7.92e11 |
   #+TBLFM: $4=$c / $2 $micron; s5::$5=$c / $3 $micron; s5::$6=$-2 - $-1;s5
+  + [2019-04-16 Tue] /Where do the numbers come from in the previous table?/
+    + Chip says that Hazy has slightly different numbers
+    + He is right: in ~continuum_bands.ini~ it has 60 \to 82 for PAC 70, whereas originally I had 60 \to 80
+    + All the others are fine
 + First, just look at the 70 micron emission
 + Cloudy gives emissivity in erg/cm^3/s
   + So we need to divide by 4\pi \Delta\nu n 10^-23 to put it in Jy.cm^2/sr/H
@@ -2556,7 +2658,7 @@ CLOSED: [2019-02-11 Mon 17:19]
   F_mathis = 0.0217
   light_speed = 2.99792458e10
   kB = 1.3806503e-16
-  bandwidth70 = 1.2491e12 
+  bandwidth70 = 1.3405e12 
   Jy = 1e-23
   stars = [
       ["MS10", 0.63, 'Purples_d'   ],
@@ -2779,7 +2881,7 @@ Now look at flux ratios between bands
   F_mathis = 0.0217
   light_speed = 2.99792458e10
   kB = 1.3806503e-16
-  bandwidth70 = 1.2491e12 
+  bandwidth70 = 1.3405e12
   Jy = 1e-23
   stars = [
       ["MS10", 0.63, 'Purples_d'   ],
@@ -2871,7 +2973,7 @@ And now the color-color plots
   F_mathis = 0.0217
   light_speed = 2.99792458e10
   kB = 1.3806503e-16
-  bandwidth70 = 1.2491e12 
+  bandwidth70 = 1.3405e12
   Jy = 1e-23
   stars = [
       ["MS10", 0.63, 'Purples_d'   ],
@@ -3035,10 +3137,70 @@ U         8         24        70       110       170
 Length = 30 rows
 #+end_example
 
-** TODO Compare SED between OB stars and interstellar field 
+*** Cloudy emissivity exposed to MMP83 ISRF SED 
++ Models are calculated above in [[id:DB79C401-5967-46B1-B0B0-0AAB3F4C9B4A][Cloudy models with the interstellar radiation field]]
++ We want to compare directly with the Draine:2007a results
+#+name: isrf-j70-vs-U-plot
+#+BEGIN_SRC python :return pltfile :results file :exports both
+  import numpy as np
+  from matplotlib import pyplot as plt
+  import seaborn as sns
+  from astropy.table import Table
+  from astropy import units as u
+  from astropy.constants import k_B
+  from cloudytab import CloudyModel
+
+  pltfile = f'isrf-j70-vs-U.pdf'
+  sns.set_color_codes("bright")
+  fig, ax = plt.subplots(figsize=(4,4))
+
+  F_habing = 1.6e-3
+  F_mathis = 0.0217
+  light_speed = 2.99792458e10
+  kB = 1.3806503e-16
+  bandwidth70 = 1.3405e12 
+  Jy = 1e-23
+  L = 1e6*3.82e33
+
+  # Data from Draine:2007a
+  DL07tab = Table.read('DL07-data/emissivities.fits')
+
+  # Read model 
+  m = CloudyModel(f'models-isrf/dustrad-n00-isrf')
+  R = m.data['rad']['radius']
+  F = L / (4*np.pi*R**2)
+  U = F / F_mathis
+  hden = m.data['ovr']['hden']
+  j70 = m.data['emis']['PAC1 70.0000m'] / (4*np.pi*hden*bandwidth70*Jy)
+  ax.plot(U, j70, alpha=0.8, lw=1, color='r', label="Cloudy")
+  # Approximately correct for extinction
+  tau_V = m.data['ovr']['AV(point)'] * np.log(10.0)/2.5
+  U *= np.exp(tau_V)
+  ax.plot(U, j70, alpha=0.8, lw=1, color='r', ls='--', label="Extinction corrected")
+  ax.plot(DL07tab['U'], DL07tab['70'], 'o', alpha=0.5, color='k', label="DL07")
+  ax.legend()
+  ax.set(
+      yscale='log',
+      xscale='log',
+      xlabel=r'Radiation field: $U = L_*\, /\, (4 \pi \,R^{2} \, c \, u_{\mathrm{MMP83}})$',
+      ylabel=r'Emissivity at 70 $\mu$m: $j_\nu$   [Jy cm$^{2}$ sr$^{-1}$ H$^{-1}$]',
+      #xlim=[1.0, 1.e6],
+  )
+
+  sns.despine()
+  fig.tight_layout()
+  fig.savefig(pltfile)
+
+#+END_SRC
+
+#+RESULTS: isrf-j70-vs-U-plot
+[[file:isrf-j70-vs-U.pdf]]
+
+** DONE Compare SED between OB stars and interstellar field 
+CLOSED: [2019-04-16 Tue 12:41]
 + ISRF SED is given in Appendix C of Mezger:1982a
 + OB star SEDs come from Cloudy models
-
++ [2019-04-15 Mon] Write SED to a file that can be used with Cloudy
 
 #+name: mmp83-sed-tab
 |    8 | 4.33e-5 |
@@ -3136,6 +3298,15 @@ Length = 30 rows
   nuFnu_inc = m.data['cont']['incident'] 
   wav = 0.0912/nu
 
+  # Write ISRF SED to file: nu is already in Rydberg, but by default we
+  # want F_nu, so divide sed by nu (only shape is used by cloudy, so no
+  # need to worry about units)
+  isrf_Fnu = mmp1983sed(wav) / nu
+  mask = isrf_Fnu > 0.0
+  with open("models-isrf/isrf_mmp1983.sed", "w") as f:
+      f.write("\n".join(["\t".join(map(str, pair)) for pair in zip(nu[mask], isrf_Fnu[mask])]))
+
+
   dilution = 1.0/(4*np.pi*u.pc.to(u.cm)**2)
   ax.plot(wav, dilution*nuFnu_inc, label="O9.5V star @ 1 pc")
   ax.plot(wav, 80*mmp1983sed(wav), label=r"IS radiation $\times 80$")
@@ -3158,7 +3329,7 @@ Length = 30 rows
 #+RESULTS:
 [[file:sed-comparison.pdf]]
 
-
+Sed table is written to [[file:models-isrf/isrf_mmp1983.sed]]
 
 
 ** Drift velocity against dust temperature
