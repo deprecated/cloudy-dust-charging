@@ -3150,7 +3150,7 @@ Length = 30 rows
   from astropy.constants import k_B
   from cloudytab import CloudyModel
 
-  pltfile = f'isrf-j70-vs-U.pdf'
+  pltfile = f'isrf-j70-vs-U.jpg'
   sns.set_color_codes("bright")
   fig, ax = plt.subplots(figsize=(4,4))
 
@@ -3189,12 +3189,16 @@ Length = 30 rows
 
   sns.despine()
   fig.tight_layout()
-  fig.savefig(pltfile)
+  fig.savefig(pltfile, dpi=300)
+  fig.savefig(pltfile.replace('.jpg', '.pdf'))
 
 #+END_SRC
 
 #+RESULTS: isrf-j70-vs-U-plot
-[[file:isrf-j70-vs-U.pdf]]
+[[file:isrf-j70-vs-U.jpg]]
+
+PDF version: [[file:isrf-j70-vs-U.pdf]]
+
 
 ** DONE Compare SED between OB stars and interstellar field 
 CLOSED: [2019-04-16 Tue 12:41]
