@@ -633,10 +633,16 @@ CLOSED: [2019-04-14 Sun 23:00]
 :ID:       DB79C401-5967-46B1-B0B0-0AAB3F4C9B4A
 :END:
 + [2019-04-15 Mon] Suggested by Chip Kobulnicky
-+ Adapt the stellar models [[id:E7E0D121-820E-470E-B39A-BDC77800E7FC][above]] but using ~table ism extinguish~
++ Adapt the stellar models [[id:E7E0D121-820E-470E-B39A-BDC77800E7FC][above]] but using the ISRF
+  + One option would be to use ~table ism extinguish~
+  + But I decided it would be better to use the exact SED from MMP83
+  + This is written to the file [[file:models-isrf/isrf_mmp1983.sed]]
+    + See [[id:C329DE08-2018-4D65-A81F-C15010403251][Compare SED between OB stars and interstellar field]]
 + Luminosity is set to 1e6 Lsun in range 0.0114 \to 1.0 Rydberg, which is 912 \AA to 8 \micro{}m
-+ This means that ionization parameter is 14700 / R^2 with R in pc
-  + So to cover U = 0.1 \to 1e6, we need R = 0.121 \to 380 pc
++ This means that radiation field is 1470 / R^2 with R in pc
+  + So to cover U = 0.1 \to 1e6, we use R = 0.0383 \to 120 pc
+  + Also: don't iterate, since we don't really need the diffuse fields.  In fact, it would make the comparison easier if there were no diffuse radiation
++ The emissivity from this model is compared with DL07 below in [[id:884CFA15-01DA-415E-9321-CE3447A3F81C][Cloudy emissivity exposed to MMP83 ISRF SED]]
 
 #+BEGIN_SRC python
   from textwrap import dedent
@@ -663,8 +669,8 @@ CLOSED: [2019-04-14 Sun 23:00]
 
   def radius_input(L4, hden):
       # Scale R_in to give U = 1e9
-      R_in_pc = 0.121
-      R_out_pc = 380.0
+      R_in_pc = 0.0383
+      R_out_pc = 120.0
       s = f"# Start close in: {R_in_pc:.3f} pc" + "\n"
       s += f"radius {np.log10(3.085677582e18*R_in_pc)}" + "\n"
       s += f"stop radius {np.log10(3.085677582e18*R_out_pc)}" + "\n"
@@ -674,9 +680,8 @@ CLOSED: [2019-04-14 Sun 23:00]
   outro_input = dedent("""\
   # We stop on radius, so make sure not on T
   stop temperature 4 K linear
-  iterate
   sphere
-  grains ism function sublimation
+  grains ism
   abundances HII region no grains
   cosmic ray background
   cmb
@@ -3138,6 +3143,9 @@ Length = 30 rows
 #+end_example
 
 *** Cloudy emissivity exposed to MMP83 ISRF SED 
+:PROPERTIES:
+:ID:       884CFA15-01DA-415E-9321-CE3447A3F81C
+:END:
 + Models are calculated above in [[id:DB79C401-5967-46B1-B0B0-0AAB3F4C9B4A][Cloudy models with the interstellar radiation field]]
 + We want to compare directly with the Draine:2007a results
 #+name: isrf-j70-vs-U-plot
@@ -3194,6 +3202,8 @@ Length = 30 rows
 
 #+END_SRC
 
+
+#+attr_html: :width 300
 #+RESULTS: isrf-j70-vs-U-plot
 [[file:isrf-j70-vs-U.jpg]]
 
@@ -3202,6 +3212,9 @@ PDF version: [[file:isrf-j70-vs-U.pdf]]
 
 ** DONE Compare SED between OB stars and interstellar field 
 CLOSED: [2019-04-16 Tue 12:41]
+:PROPERTIES:
+:ID:       C329DE08-2018-4D65-A81F-C15010403251
+:END:
 + ISRF SED is given in Appendix C of Mezger:1982a
 + OB star SEDs come from Cloudy models
 + [2019-04-15 Mon] Write SED to a file that can be used with Cloudy
