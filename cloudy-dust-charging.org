@@ -1676,6 +1676,7 @@ And a few more, slightly higher density
 ** Utility library for reading model
 #+BEGIN_SRC python :tangle cloudytab.py
   from astropy.table import Table
+  from astropy.io.ascii import InconsistentTableError
   import glob
 
   # File extensions that might be present, but which are NOT Cloudy save files
@@ -1720,7 +1721,10 @@ And a few more, slightly higher density
                   except UnicodeDecodeError:
                       # Binary files can raise this error - ignore them
                       pass
-
+                  except InconsistentTableError:
+                      # The "save heating" files can raise this error - skip them
+                      pass
+                
 #+END_SRC
 
 #+RESULTS:
@@ -4079,6 +4083,9 @@ Sed table is written to [[file:models-isrf/isrf_mmp1983.sed]]
 [[file:fluxes-test-dust-tlusty.pdf]]
 
 * An Emacs mode for cloudy input files
+:PROPERTIES:
+:ID:       BFADB49A-57C0-4D0F-B78A-3017B7CAAA55
+:END:
 Cloudy has now changed it's comment character, so I needed to revisit this
 #+BEGIN_SRC emacs-lisp
   (require 'generic-x) ;; we need this
